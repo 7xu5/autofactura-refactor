@@ -1,6 +1,8 @@
-from flask_sqlalchemy import SQLAlchemy
 import enum
 from datetime import datetime
+
+# Importamos la instancia única de db desde nuestro archivo de extensiones
+from app.extensions import db
 
 class EstadoConciliacion(enum.Enum):
     ok = 'ok'
@@ -12,7 +14,7 @@ class OrigenDeteccion(enum.Enum):
     post_restauracion = 'post_restauracion'
     manual = 'manual'
 
-db = SQLAlchemy()
+
 
 class ModelInitMixin:
     def __init__(self, **kwargs) -> None:
