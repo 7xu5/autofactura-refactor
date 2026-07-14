@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AutoFactura - Facturación autónomos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <script>
+        (function() {
+            const temaGuardado = localStorage.getItem('theme');
+            const prefiereOscuroSistema = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (temaGuardado === 'dark' || (!temaGuardado && prefiereOscuroSistema)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+</head>
+<body>
+    <header class="topbar">
+        <div class="header-left">
+            <button class="menu-toggle" onclick="document.body.classList.toggle('menu-open')" aria-label="Abrir menú">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="logo">
+                <img src="{{ url_for('static', filename='logo2.svg') }}" alt="AutoFactura" style="height: 40px; width: auto; display: block;">
+            </div>
+            
+            <nav class="main-nav">
+                <a href="{{ url_for('invoices.facturas') }}" class="nav-link{% if request.endpoint.startswith('invoices.') %} active{% endif %}">Facturas</a>
+                <a href="{{ url_for('budgets.presupuestos') }}" class="nav-link{% if request.endpoint.startswith('budgets.') %} active{% endif %}">Presupuestos</a>
+                <a href="{{ url_for('delivery_notes.albaranes') }}" class="nav-link{% if request.endpoint.startswith('delivery_notes.') %} active{% endif %}">Albaranes</a>
+                <a href="{{ url_for('expenses.gastos') }}" class="nav-link{% if request.endpoint.startswith('expenses.') %} active{% endif %}">Gastos</a>
+                <a href="{{ url_for('contacts.contactos') }}" class="nav-link{% if request.endpoint.startswith('contacts.') %} active{% endif %}">Contactos</a>
+                <a href="{{ url_for('products.productos') }}" class="nav-link{% if request.endpoint.startswith('products.') %} active{% endif %}">Productos</a>
+                <a href="{{ url_for('payments.pagos') }}" class="nav-link{% if request.endpoint.startswith('payments.') %} active{% endif %}">Pagos</a>
+                <a href="{{ url_for('config.configuracion') }}" class="nav-link{% if request.endpoint.startswith('config.') %} active{% endif %}">Configuración</a>
+            </nav>
+        </div>
+        <div class="session-panel" style="display: flex; align-items: center; gap: .75rem;">
+    <button id="toggle-theme-btn" class="small-button" style="display: flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; padding: 0; cursor: pointer; border-radius: .75rem;" title="Cambiar tema">
+        <i id="theme-icon" class="bi bi-moon-stars" style="font-size: 1.1rem;"></i>
+    </button>
+
+    <span class="user-pill">{{ session.get('username', 'Anon')[:2].upper() }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="small-button" style="white-space: nowrap;">Cerrar sesión</a>
+</div>
+    </header>
+    <main class="page-shell">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages" style="margin-bottom: 1.5rem;">
+                {% for category, message in messages %}
+                    {% if category == 'danger' %}
+                        <div class="alert alert-danger" style="padding: 1rem; margin-bottom: 0.5rem; border-radius: 4px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;">
+                            {{ message }}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-{{ category }}" style="padding: 1rem; margin-bottom: 0.5rem; border-radius: 4px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;">
+                            {{ message }}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer-bar">
+    <div class="footer-left">
+        <span>AutoFactura</span> - Sistema de facturación para autónomos
+    </div>
+        <div class="footer-right">
+            <span class="version-tag">v1.2.0</span> | 
+            <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="license-link" 
+            title="Ver términos de la licencia Creative Commons">CC BY-NC-SA 4.0</a> | 
+            Desarrollado por <a href="https://github.com/7xu5/AutoFactura" class="creator-link">Jesús Sánchez León</a>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const botonTema = document.getElementById('toggle-theme-btn');
+            const iconoTema = document.getElementById('theme-icon');
+
+            // Sincroniza el icono inmediatamente según el tema activo
+            function actualizarIcono() {
+                if (document.documentElement.classList.contains('dark')) {
+                    iconoTema.className = 'bi bi-sun';
+                } else {
+                    iconoTema.className = 'bi bi-moon-stars';
+                }
+            }
+            
+            // Ejecutar al cargar la página
+            actualizarIcono();
+
+            // Escuchar el click para alternar
+            botonTema.addEventListener('click', () => {
+                const esOscuro = document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', esOscuro ? 'dark' : 'light');
+                actualizarIcono();
+            });
+        });
+    </script>
+
+</body>
+</html>

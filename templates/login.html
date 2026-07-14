@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acceso - AutoFactura</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <script>
+        (function() {
+            const temaGuardado = localStorage.getItem('theme');
+            const prefiereOscuroSistema = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (temaGuardado === 'dark' || (!temaGuardado && prefiereOscuroSistema)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <style>
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+        
+        .login-subtitle { 
+            text-align: center; 
+            margin-bottom: 1.5rem; 
+            color: var(--muted); 
+            font-size: 0.95rem; 
+        }
+        
+        /* Contenedor externo de la imagen (fuera del cuadro de login) */
+        .login-outer-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            width: 551px;
+            max-width: 562px;
+        }
+        
+        /* Imagen mucho más grande */
+        .login-outer-logo img {
+            width: 100%;          /* Ocupa la mayor parte de su contenedor */
+            max-width: 520px;    /* Tamaño máximo ampliado considerablemente */
+            height: auto;
+            object-fit: contain;
+        }
+        
+        .text-center { text-align: center; }
+
+        /* Contenedor superior derecho para el botón de tema */
+        .login-theme-wrapper {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+        }
+    </style>
+</head>
+<body class="login-page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; box-sizing: border-box;">
+
+    <div class="login-theme-wrapper">
+        <button id="toggle-theme-btn" class="small-button" style="display: flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; padding: 0; cursor: pointer; border-radius: .75rem;" title="Cambiar tema">
+            <i id="theme-icon" class="bi bi-moon-stars" style="font-size: 1.1rem;"></i>
+        </button>
+    </div>
+
+    <div class="login-outer-logo">
+        <img src="{{ url_for('static', filename='logo2.svg') }}" alt="AutoFactura Ilustración/Logo">
+    </div>
+
+    <div class="login-box" style="margin-top: 0;">
+        <h1 class="text-center" style="margin-top: 0.5rem;">AutoFactura</h1>
+        
+        {# Interfaz condicional según el estado de la base de datos #}
+        {% if any_user_exists %}
+            <form id="login-form" class="auth-form active" method="post" action="{{ url_for('auth.login') }}">
+                <div class="login-subtitle">
+                    Área privada de facturación
+                </div>
+
+                <div class="field-group">
+                    <label>Usuario</label>
+                    <input type="text" name="username" placeholder="Tu nombre de usuario" required />
+                </div>
+
+                <div class="field-group">
+                    <label>Contraseña</label>
+                    <div class="password-wrapper">
+                        <input type="password" name="password" class="password-input-field" placeholder="••••••••" required />
+                    </div>
+                </div>
+
+                <button type="submit" class="button primary wide">Entrar a la plataforma</button>
+            </form>
+        {% else %}
+            <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+                <p style="margin: 0; font-weight: bold;">Asistente de primer arranque</p>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem;">No se han detectado usuarios. Define las credenciales del Usuario Principal:</p>
+            </div>
+
+            <form id="register-form" class="auth-form active" method="post" action="{{ url_for('auth.setup_admin') }}">
+                <div class="field-group">
+                    <label>Nuevo Usuario</label>
+                    <input type="text" name="username" placeholder="Ej: admin_fiscal" required />
+                </div>
+
+                <div class="field-group">
+                    <label>Contraseña del Usuario</label>
+                    <div class="password-wrapper">
+                        <input type="password" name="password" class="password-input-field" placeholder="Mínimo 6 caracteres" required />
+                    </div>
+                </div>
+
+                <button type="submit" class="button primary wide" style="background: var(--success); color: #fff;">Crear Usuario Principal</button>
+            </form>
+        {% endif %}
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container" style="margin-top: 1.5rem;">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const botonTema = document.getElementById('toggle-theme-btn');
+            const iconoTema = document.getElementById('theme-icon');
+
+            function actualizarIcono() {
+                if (document.documentElement.classList.contains('dark')) {
+                    iconoTema.className = 'bi bi-sun';
+                } else {
+                    iconoTema.className = 'bi bi-moon-stars';
+                }
+            }
+            
+            actualizarIcono();
+
+            botonTema.addEventListener('click', () => {
+                const esOscuro = document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', esOscuro ? 'dark' : 'light');
+                actualizarIcono();
+            });
+        });
+    </script>
+</body>
+</html>

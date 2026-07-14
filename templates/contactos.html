@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header space-between">
+    <div>
+        <h1>Contactos</h1>
+        <p>Gestión unificada de clientes y proveedores</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('contacts.contacto_nuevo') }}" class="button primary">Añadir contacto</a>
+    </div>
+</div>
+<section class="panel cards-row cards-recent">
+    {% for contacto in contactos[:3] %}
+        <article class="card recent-card">
+            <div class="avatar">{{ contacto.nombre_fiscal[:2].upper() }}</div>
+            <span class="label">{{ contacto.tipo_contacto }}</span>
+            <h3>{{ contacto.nombre_fiscal }}</h3>
+            <p class="stat">Total facturado<br><strong>{{ '{:,.2f}'.format(contacto.total_facturado or 0) }} €</strong></p>
+            <span class="note">Último doc. {{ contacto.ultimo_documento or '-' }}</span>
+        </article>
+    {% else %}
+        <article class="card recent-card">
+            <h3>No hay contactos recientes</h3>
+        </article>
+    {% endfor %}
+</section>
+<section class="panel">
+    <div class="panel-header space-between">
+        <div class="tab-row">
+            <a href="{{ url_for('contacts.contactos', tipo='Cliente') }}" class="tab{% if tipo == 'Cliente' %} active{% endif %}">Clientes</a>
+            <a href="{{ url_for('contacts.contactos', tipo='Proveedor') }}" class="tab{% if tipo == 'Proveedor' %} active{% endif %}">Proveedores</a>
+        </div>
+        <form method="get" class="search-row" onsubmit="return false;">
+            <input type="text" id="contactoSearchInput" name="q" placeholder="Buscar por nombre o NIF" value="{{ busqueda }}" autocomplete="off" />
+            <button type="button" class="button secondary small">Filtros</button>
+        </form>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th><input type="checkbox" /></th>
+                <th>NIF</th>
+                <th>Nombre del contacto</th>
+                <th>Tipo</th>
+                <th>Últ. Documento</th>
+                <th>Total Pendiente</th>
+                <th>Total Facturado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in contactos %}
+                <tr>
+                    <td data-label="SELECCIONAR"><input type="checkbox" /></td>
+                    <td data-label="NIF">{{ c.numero_documento }}</td>
+                    <td data-label="NOMBRE DEL CONTACTO">{{ c.nombre_fiscal }}</td>
+                    <td data-label="TIPO">{{ c.tipo_contacto }}</td>
+                    <td data-label="ÚLT. DOCUMENTO">{{ c.ultimo_documento or '-' }}</td>
+                    <td data-label="TOTAL PENDIENTE">{{ '{:,.2f}'.format(c.total_pendiente or 0) }} €</td>
+                    <td data-label="TOTAL FACTURADO">{{ '{:,.2f}'.format(c.total_facturado or 0) }} €</td>
+                    <td data-label="ACCIONES"><a href="{{ url_for('contacts.contacto_editar', contacto_id=c.id) }}" class="button secondary small">Editar</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8">No hay contactos registrados.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<div id="contactoSelectionFooter" class="selection-footer" style="display: none;">
+    <div class="selection-actions">
+        <span id="selectedCount" style="color: #666; margin-right: 15px;"></span>
+        <button id="editContact" class="button secondary small">Editar</button>
+        <button id="deleteContact" class="button danger small">Eliminar</button>
+    </div>
+</div>
+
+<script>
+    $(function() {
+        // Buscamos la tabla de contactos
+        const contactoTable = $('.data-table'); 
+        const footer = $('#contactoSelectionFooter');
+        const selectedCount = $('#selectedCount');
+        const searchInput = $('#contactoSearchInput'); // Elemento enlazado a la barra de búsqueda
+
+        // Función que cuenta cuántos hay seleccionados y muestra/oculta el menú
+        function updateFooter() {
+            const checkedBoxes = contactoTable.find('tbody input[type="checkbox"]:checked');
+            const count = checkedBoxes.length;
+
+            if (count > 0) {
+                selectedCount.text(count + ' ' + (count === 1 ? 'elemento seleccionado' : 'elementos seleccionados'));
+                footer.show(); // Muestra el menú
+            } else {
+                footer.hide(); // Oculta el menú si no hay ninguno marcado
+            }
+        }
+
+        // Detecta cuando marcas/desmarcas un checkbox directamente
+        contactoTable.on('change', 'tbody input[type="checkbox"]', function() {
+            $(this).closest('tr').toggleClass('row-selected', this.checked);
+            updateFooter();
+        });
+
+        // Permitir hacer clic en cualquier parte de la fila para seleccionar (excepto enlaces o inputs)
+        contactoTable.on('click', 'tbody tr', function(event) {
+            if (event.target.type !== 'checkbox' && event.target.tagName !== 'A' && event.target.tagName !== 'BUTTON') {
+                const checkbox = $(this).find('input[type="checkbox"]');
+                checkbox.prop('checked', !checkbox.prop('checked')).trigger('change');
+            }
+        });
+
+        // Al hacer clic en el botón Editar del menú inferior
+        $('#editContact').on('click', function() {
+            const checked = contactoTable.find('tbody input[type="checkbox"]:checked');
+            if (checked.length !== 1) {
+                alert('Selecciona un solo contacto para editar.');
+                return;
+            }
+            // Obtenemos la fila para sacar el ID del enlace de edición que ya existe
+            const fila = checked.closest('tr');
+            const urlEditar = fila.find('a.button').attr('href');
+            window.location.href = urlEditar;
+        });
+
+        // Al hacer clic en el botón Eliminar del menú inferior
+        $('#deleteContact').on('click', function() {
+            const checked = contactoTable.find('tbody input[type="checkbox"]:checked');
+            if (checked.length !== 1) { alert('Selecciona un solo contacto para eliminar.'); return; }
+            if (!confirm('¿Estás seguro de que deseas eliminar este contacto?')) return;
+            
+            // Reutiliza la URL de edición cambiando 'editar' por 'eliminar'
+            const fila = checked.closest('tr');
+            const urlEditar = fila.find('a.button').attr('href');
+            const urlEliminar = urlEditar.replace('/editar', '/eliminar');
+
+            $.post(urlEliminar).done(function() {
+                location.reload();
+            }).fail(function() {
+                alert('Error al eliminar el contacto.');
+            });
+        });
+
+        // --- SISTEMA DE ORDENACIÓN DE TABLA REPLICADO Y ADAPTADO ---
+        contactoTable.find('thead th').each(function(index) {
+            // Saltamos el índice 0 (checkbox) y el último índice (acciones)
+            if (index > 0 && index < contactoTable.find('thead th').length - 1) {
+                $(this).addClass('sortable').css('cursor', 'pointer');
+                const currentText = $(this).text();
+                $(this).html(`<div class="th-content"><span>${currentText}</span> <i class="bi bi-arrow-down-up" style="font-size: 0.8rem; opacity: 0.5; margin-left: 5px;"></i></div>`);
+            }
+        });
+
+        contactoTable.on('click', 'th.sortable', function() {
+            const th = $(this);
+            const index = th.index();
+            const tbody = contactoTable.find('tbody');
+            const rows = tbody.find('tr').not(':has(td[colspan])').get(); // Excluir fila de "No hay contactos"
+            
+            let asciiClass = 'asc';
+            if (th.hasClass('asc')) {
+                asciiClass = 'desc';
+                th.removeClass('asc').addClass('desc');
+            } else {
+                th.removeClass('desc').addClass('asc');
+            }
+            
+            contactoTable.find('th.sortable').not(th).removeClass('asc desc');
+
+            function getCellValue(row, idx) {
+                let td = $(row).children('td').eq(idx);
+                let label = (td.attr('data-label') || '').toUpperCase().trim();
+                let text = td.text().trim();
+                
+                // Forzamos la detección tanto por la etiqueta explícita como por el índice de la columna de importes
+                if (label === 'TOTAL PENDIENTE' || label === 'TOTAL FACTURADO' || idx === 5 || idx === 6) { 
+                    // Limpieza total: quitamos comas de miles y aislamos números con sus decimales
+                    let cleanText = text.replace(/,/g, '').replace(/[^0-9.-]/g, '');
+                    return parseFloat(cleanText) || 0;
+                }
+                
+                return text.toLowerCase();
+            }
+
+            rows.sort(function(a, b) {
+                const valA = getCellValue(a, index);
+                const valB = getCellValue(b, index);
+                
+                if (valA === valB) return 0;
+                
+                if (asciiClass === 'asc') {
+                    return valA > valB ? 1 : -1;
+                } else {
+                    return valA < valB ? 1 : -1;
+                }
+            });
+
+            $.each(rows, function(index, row) {
+                tbody.append(row);
+            });
+        });
+
+        // --- SISTEMA DE FILTRADO EN TIEMPO REAL ---
+        if (searchInput.length) {
+            searchInput.on('input', function() {
+                const query = $(this).val().toLowerCase().trim();
+                const rows = contactoTable.find('tbody tr').not('.no-results-row');
+                let visibles = 0;
+
+                rows.each(function() {
+                    const row = $(this);
+                    // Índice 1: NIF, Índice 2: Nombre del contacto
+                    const nif = row.children('td').eq(1).text().toLowerCase();
+                    const nombre = row.children('td').eq(2).text().toLowerCase();
+
+                    if (nif.includes(query) || nombre.includes(query)) {
+                        row.show();
+                        visibles++;
+                    } else {
+                        row.hide();
+                        // Si se oculta una fila seleccionada, desmarcamos su checkbox
+                        const cb = row.find('input[type="checkbox"]');
+                        if (cb.prop('checked')) {
+                            cb.prop('checked', false).trigger('change');
+                        }
+                    }
+                });
+
+                // Controlar el aviso visual si no hay ninguna coincidencia
+                contactoTable.find('tbody tr.no-results-row').remove();
+                if (visibles === 0 && rows.length > 0) {
+                    contactoTable.find('tbody').append('<tr class="no-results-row"><td colspan="8" style="text-align: center; color: #999; padding: 20px;">No se encontraron contactos que coincidan con la búsqueda.</td></tr>');
+                }
+            });
+
+            // Cancelar el comportamiento predeterminado de la tecla Intro en el buscador
+            searchInput.on('keydown', function(event) {
+                if (event.key === 'Enter' || event.keyCode === 13) {
+                    event.preventDefault();
+                }
+            });
+        }
+
+        updateFooter();
+    });
+</script>
+{% endblock %}

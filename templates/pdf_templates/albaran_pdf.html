@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #1a2232;
+            font-size: 11pt;
+            line-height: 1.5;
+        }
+        .header-table {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        .logo-container {
+            width: 15%;
+            vertical-align: top;
+            text-align: left;
+        }
+        .invoice-title {
+            font-size: 18pt;
+            font-weight: bold;
+            text-align: right;
+            color: #1a2232;
+        }
+        .details-table {
+            width: 100%;
+            margin-bottom: 40px;
+        }
+        .details-box {
+            width: 48%;
+            vertical-align: top;
+        }
+        .box-title {
+            font-size: 10pt;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .concepts-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .concepts-table th {
+            background-color: #f3f4f6;
+            color: #374151;
+            font-weight: bold;
+            font-size: 9pt;
+            padding: 6px 10px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+        }
+        .concepts-table td {
+            padding: 6px 10px;
+            font-size: 9pt;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: top;
+        }
+        .invoice-item-description, 
+        .invoice-item-description * {
+            display: inline !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.2 !important;
+        }
+    </style>
+</head>
+<body>
+
+    <table class="header-table" style="width: 100%;">
+        <tr>
+            <td class="logo-container">
+                {% if logo_base64 %}<img src="{{ logo_base64 }}" width="150" style="display: block; margin-bottom: 8px;" />{% else %}<div class="logo-title" style="font-size: 20pt; font-weight: bold; color: #d58a1d; margin-bottom: 0px;">{{ config.nombre_empresa if config and config.nombre_empresa else "AutoFactura" }}</div>{% endif %}
+            </td>
+            <td style="width: 80%; text-align: right; vertical-align: top;">
+                <span class="invoice-title" style="display: block;">
+                    ALBARÁN
+                </span>
+                <span style="font-size: 10.5pt; line-height: 1.4; display: block;">
+                    <strong>Número:</strong> {{ albaran.numero_albaran }}<br>
+                    <strong>Fecha:</strong> 
+                        {% if albaran.fecha_emision %}
+                            {% if albaran.fecha_emision.strftime %}
+                                {{ albaran.fecha_emision.strftime('%d/%m/%Y') }}
+                            {% else %}
+                                {# Si viene como texto 'YYYY-MM-DD', lo reordenamos a 'DD/MM/YYYY' #}
+                                {{ albaran.fecha_emision[8:10] }}/{{ albaran.fecha_emision[5:7] }}/{{ albaran.fecha_emision[0:4] }}
+                            {% endif %}
+                        {% else %}
+                            <em>No especificada</em>
+                        {% endif %}
+                        <br>
+                    {% if albaran.referencia %}<strong>Referencia:</strong> {{ albaran.referencia }}<br>{% endif %}
+                </span>
+            </td>
+        </tr>
+    </table>
+
+    <table class="details-table">
+        <tr>
+            <td class="details-box">
+                <div class="box-title">Emisor</div>
+                <strong>{{ config.nombre_empresa if config and config.nombre_empresa else '' }}</strong><br>
+                <span>CIF/NIF: {{ config.cif_nif if config and config.cif_nif else '' }}</span><br>
+                {{ config.direccion_fiscal if config and config.direccion_fiscal else '' }}<br>
+                {{ config.codigo_postal if config and config.codigo_postal else '' }} {{ config.ciudad if config and config.ciudad else '' }}<br>
+                {{ config.email if config and config.email else '' }}<br>
+                {{ config.telefono if config and config.telefono else '' }}
+            </td>
+            <td style="width: 4%;"></td>
+            <td class="details-box">
+                <div class="box-title">Cliente</div>
+                <strong>{{ cliente.nombre_fiscal if cliente else 'Cliente General' }}</strong><br>
+                <span>CIF/NIF: {{ cliente.numero_documento if cliente else '' }}</span><br>
+                {{ cliente.direccion_fiscal if cliente else '' }}<br>
+                {{ cliente.codigo_postal if cliente else '' }} {{ cliente.ciudad if cliente else '' }}<br>
+                {{ cliente.email_principal if cliente else '' }}<br>
+                {{ cliente.telefono if cliente else '' }}
+            </td>
+        </tr>
+    </table>
+
+    <table class="concepts-table">
+        <thead>
+            <tr>
+                <th style="width: 85%; padding: 6px 8px; font-size: 8.5pt;">Concepto / Descripción</th>
+                <th style="text-align: right; width: 15%; padding: 6px 4px; font-size: 8.5pt;">Uds.</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in albaran.lineas %}
+            <tr>
+                <td style="padding: 6px 8px; font-size: 9pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; line-height: 1.2;">
+                    <span style="font-weight: bold; display: inline-block; margin-bottom: 2px;">{{ item.concepto }}</span>
+                    
+                    {% if item.informacion %}
+                        <br>
+                        <span class="invoice-item-description" style="font-style: italic; color: #6b7280; font-size: 8pt; display: inline-block; line-height: 1.2;">
+                            {{ item.informacion | safe }}
+                        </span>
+                    {% endif %}
+                </td>
+                <td style="padding: 6px 4px; font-size: 8.5pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; text-align: right; line-height: 1.2;">
+                    {{ item.unidades }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table style="width: 100%; margin-top: 30px; page-break-inside: avoid;">
+        <tr>
+            <td style="width: 55%; vertical-align: top; font-size: 9.5pt; line-height: 1.5;">
+                {% if albaran.metodo_pago %}
+                    <div style="margin-bottom: 15px;">
+                        <strong style="font-size: 9pt; color: #6b7280; text-transform: uppercase;">Método de pago:</strong><br>
+                        {{ albaran.metodo_pago.nombre }}
+                    </div>
+                {% endif %}
+                
+                {% if albaran.notas %}
+                    <div>
+                        <strong style="font-size: 9pt; color: #6b7280; text-transform: uppercase;">Notas / Observaciones del Albarán:</strong><br>
+                        <span style="color: #4b5563;">{{ albaran.notas|replace('\n', '<br>')|safe }}</span>
+                    </div>
+                {% endif %}
+            </td>
+            
+            <td style="width: 5%;"></td>
+            
+            <td style="width: 40%; vertical-align: top; border: 1px dashed #9ca3af; padding: 15px; border-radius: 4px; font-size: 8.5pt;">
+                <span style="color: #6b7280; font-weight: bold; text-transform: uppercase;">Firma / Sello del Cliente:</span>
+                <br><br><br><br><br>
+                <span style="color: #1a2232;">Firmado: __________________________</span>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

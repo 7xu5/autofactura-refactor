@@ -1,0 +1,35 @@
+# --- Framework Core & Mapeo de Datos ---
+Flask==3.1.3
+Flask-SQLAlchemy==3.1.1
+Werkzeug==3.1.8
+
+# --- Facturación Electrónica (Módulo Veri*Factu AEAT) ---
+lxml==6.1.1
+signxml==4.4.0
+cryptography==48.0.0
+requests==2.34.2
+
+# --- Generación de Medios y Documentos (QR y PDFs) ---
+qrcode==8.2
+xhtml2pdf==0.2.17
+reportlab==4.5.1
+pypdf==6.13.0
+pyHanko==0.35.1
+pillow==12.2.0
+
+# --- Extracción de Texto y OCR (Módulo de Gastos) ---
+pdfplumber==0.11.9
+pdfminer.six==20251230
+pytesseract==0.3.13
+
+# --- Servidor WSGI de Producción ---
+waitress==3.0.2
+
+# --- Tests ---
+pytest==9.1.1
+
+# --- Faltaban estos ---
+SQLAlchemy==2.0.50
+python-dotenv==1.2.2
+openpyxl==3.1.5
+pandas==3.0.3

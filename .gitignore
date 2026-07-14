@@ -1,0 +1,8 @@
+/.venv
+/facturacion_db.sqlite
+/certs
+.env
+/imagenes
+arbol.py
+/specs
+/imports

@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Editar Pago</h1>
+        <p>Actualiza los detalles del movimiento de caja seleccionado</p>
+    </div>
+    <a href="{{ url_for('payments.pagos') }}" class="button secondary">Volver a pagos</a>
+</div>
+
+<section class="panel">
+    <form method="post" class="grid-2">
+        <div>
+            <label>Fecha de pago*</label>
+            <input type="date" name="fecha_pago" value="{{ pago.fecha_pago.isoformat() }}" required />
+            
+            <label>Tipo de movimiento</label>
+            <select name="tipo_movimiento">
+                <option value="Ingreso" {% if pago.tipo_movimiento == 'Ingreso' %}selected{% endif %}>Ingreso (Cobro)</option>
+                <option value="Egreso" {% if pago.tipo_movimiento == 'Egreso' %}selected{% endif %}>Egreso (Gasto)</option>
+            </select>
+
+            <label>Importe*</label>
+            <input type="number" step="0.01" name="importe" value="{{ pago.importe }}" required />
+
+            <label>Método de pago</label>
+            <input type="text" name="metodo_pago" value="{{ pago.metodo_pago or '' }}" placeholder="Ej: Transferencia, Efectivo..." />
+
+            <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                <button type="submit" class="button primary">Actualizar pago</button>
+                <a href="{{ url_for('payments.pagos') }}" class="button secondary">Cancelar</a>
+            </div>
+        </div>
+
+        <aside class="panel-info">
+            <h3>Documento Vinculado</h3>
+            <div class="info-list">
+                {% if pago.factura %}
+                    <p><strong>Factura:</strong> {{ pago.factura.numero_factura }}</p>
+                    <p><strong>Cliente:</strong> {{ pago.factura.contacto.nombre_fiscal }}</p>
+                    <p><strong>Total Documento:</strong> {{ '{:,.2f}'.format(pago.factura.total_factura) }} €</p>
+                {% elif pago.gasto %}
+                    <p><strong>Gasto:</strong> {{ pago.gasto.numero_factura_proveedor or pago.gasto.tipo_gasto }}</p>
+                    <p><strong>Proveedor:</strong> {{ pago.gasto.contacto.nombre_fiscal if pago.gasto.contacto else 'N/A' }}</p>
+                    <p><strong>Total Documento:</strong> {{ '{:,.2f}'.format(pago.gasto.total_factura) }} €</p>
+                {% else %}
+                    <p>Este pago no está vinculado a ningún documento específico.</p>
+                {% endif %}
+            </div>
+            
+            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #e5e7eb;">
+            <p class="note" style="font-size: 0.85rem; color: var(--muted);">Nota: Por seguridad, el documento vinculado no puede cambiarse desde aquí. Si necesitas vincular este pago a otra factura, elimínalo y regístralo de nuevo.</p>
+        </aside>
+    </form>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    
+    if (form) {
+        form.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                // Permitimos el Enter nativo solo si el usuario está presionando activamente el botón de submit
+                if (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'BUTTON' && e.target.type === 'submit')) {
+                    return;
+                }
+
+                // Evitamos el guardado prematuro del movimiento de caja
+                e.preventDefault();
+
+                // Filtramos los elementos interactivos del formulario que sean visibles y editables
+                const formElements = Array.from(this.elements).filter(el => {
+                    return (
+                        el.tagName === 'INPUT' || 
+                        el.tagName === 'SELECT' || 
+                        el.tagName === 'TEXTAREA' || 
+                        (el.tagName === 'BUTTON' && el.type !== 'button')
+                    ) && !el.readOnly && !el.disabled && el.type !== 'hidden' && el.style.display !== 'none';
+                });
+
+                const currentIndex = formElements.indexOf(e.target);
+
+                // Si hay un siguiente campo en la lista, enfocamos en él
+                if (currentIndex > -1 && currentIndex + 1 < formElements.length) {
+                    const nextElement = formElements[currentIndex + 1];
+                    nextElement.focus();
+                    
+                    // Si el siguiente campo es de texto o numérico, autoseleccionamos su valor
+                    if (nextElement.tagName === 'INPUT' && typeof nextElement.select === 'function') {
+                        nextElement.select();
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Gasto</title>
+    <style>
+        body { font-family: Helvetica, Arial, sans-serif; color: #333; padding: 20px; line-height: 1.4; }
+        .header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 30px; }
+        .title { font-size: 24px; font-weight: bold; text-transform: uppercase; }
+        .meta-table { width: 100%; margin-bottom: 30px; }
+        .meta-table td { padding: 5px 0; font-size: 14px; }
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .data-table th { background-color: #f4f4f4; border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 13px; }
+        .data-table td { border: 1px solid #ddd; padding: 10px; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="title">Justificante de Gasto Registrado</div>
+        <p style="color: #666; font-size: 12px;">Generado automáticamente por AutoFactura</p>
+    </div>
+
+    <table class="meta-table">
+    <tr>
+        <td style="width: 50%; vertical-align: top;">
+            <strong>Proveedor / Contacto:</strong><br>
+            {{ gasto.contacto.nombre_fiscal if gasto.contacto else 'Sin proveedor asignado' }}<br>
+            
+            {% if gasto.contacto %}
+                {% if gasto.contacto.numero_documento %}
+                    {{ gasto.contacto.numero_documento }}<br>
+                {% endif %}
+                
+                {% if gasto.contacto.direccion_fiscal %}
+                    {{ gasto.contacto.direccion_fiscal }}<br>
+                {% endif %}
+                
+                {% if gasto.contacto.codigo_postal or gasto.contacto.ciudad or gasto.contacto.provincia %}
+                    {{ gasto.contacto.codigo_postal or '' }} {{ gasto.contacto.ciudad or '' }}
+                    {% if gasto.contacto.provincia %}({{ gasto.contacto.provincia }}){% endif %}<br>
+                {% endif %}
+                {% if gasto.contacto.pais and gasto.contacto.pais != 'España' %}
+                    {{ gasto.contacto.pais }}<br>
+                {% endif %}
+                
+                {% if gasto.contacto.email_principal %}
+                    Email: {{ gasto.contacto.email_principal }}<br>
+                {% endif %}
+                {% if gasto.contacto.telefono %}
+                    Tel: {{ gasto.contacto.telefono }}<br>
+                {% endif %}
+            {% endif %}
+        </td>
+        <td style="width: 50%; text-align: right; vertical-align: top;">
+            <strong>Nº Factura Proveedor:</strong> {{ gasto.numero_factura_proveedor or '-' }}<br>
+            <strong>Referencia interna:</strong> {{ gasto.referencia or '-' }}<br>
+            <strong>Fecha Emisión:</strong> {{ gasto.fecha_factura.strftime('%d/%m/%Y') }}
+        </td>
+    </tr>
+</table>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>CONCEPTO / TIPO DE GASTO</th>
+                <th>FECHA VENCIMIENTO</th>
+                <th>ESTADO ACTUAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ gasto.tipo_gasto or 'Gasto general' }}</td>
+                <td>{{ gasto.fecha_vencimiento.strftime('%d/%m/%Y') if gasto.fecha_vencimiento else '-' }}</td>
+                <td>{{ gasto.estado_pago }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="width: 40%; margin-left: 60%;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th colspan="2" style="text-align: center;">Desglose Económico</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if gasto.impuestos %}
+                    {% for impuesto in gasto.impuestos %}
+                    <tr>
+                        <td>Base {{ impuesto.tipo or 'IVA' }}</td>
+                        <td style="text-align: right;">{{ '{:,.2f}'.format(impuesto.base|float if impuesto.base else 0.0) }} €</td>
+                    </tr>
+                    <tr>
+                        <td>Cuota {{ impuesto.tipo or 'IVA' }}</td>
+                        <td style="text-align: right;">{{ '{:,.2f}'.format(impuesto.cuota|float if impuesto.cuota else 0.0) }} €</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+                
+                {% if gasto.importe_retencion and gasto.importe_retencion > 0 %}
+                <tr>
+                    <td>Retención ({{ gasto.porcentaje_retencion }}%)</td>
+                    <td style="text-align: right; color: #a94442;">-{{ '{:,.2f}'.format(gasto.importe_retencion|float) }} €</td>
+                </tr>
+                {% endif %}
+                
+                <tr style="font-weight: bold; background-color: #f9f9f9;">
+                    <td>TOTAL GASTO</td>
+                    <td style="text-align: right; font-size: 15px;">{{ '{:,.2f}'.format(gasto.total_factura|float if gasto.total_factura else 0.0) }} €</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

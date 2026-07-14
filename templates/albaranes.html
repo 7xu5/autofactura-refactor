@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header space-between">
+    <div>
+        <h1>Albaranes</h1>
+        <p>Listado y estados del ciclo logístico y de entrega</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('delivery_notes.albaran_crear') }}" class="button primary">Crear albarán</a>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="tab-container-responsive">
+        <div class="tab-row">
+            <a href="{{ url_for('delivery_notes.albaranes', estado='Todos') }}" class="tab{% if estado == 'Todos' %} active{% endif %}">Todos</a>
+            <a href="{{ url_for('delivery_notes.albaranes', estado='Borrador') }}" class="tab{% if estado == 'Borrador' %} active{% endif %}">Borradores</a>
+            <a href="{{ url_for('delivery_notes.albaranes', estado='Emitido') }}" class="tab{% if estado == 'Emitido' %} active{% endif %}">Emitidos</a>
+            <a href="{{ url_for('delivery_notes.albaranes', estado='Facturado') }}" class="tab{% if estado == 'Facturado' %} active{% endif %}">Facturados</a>
+            <a href="{{ url_for('delivery_notes.albaranes', estado='Anulado') }}" class="tab{% if estado == 'Anulado' %} active{% endif %}">Anulados</a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table" id="albaranTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="selectAll" /></th>
+                    <th>Nº Albarán</th>
+                    <th>Cliente</th>
+                    <th>Fecha emisión</th>
+                    <th>Fecha entrega</th>
+                    <th>Estado</th>
+                    <th style="text-align: right;">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in albaranes %}
+                <tr data-albaran-id="{{ a.id }}">
+                    <td data-label="SELECCIONAR"><input type="checkbox" value="{{ a.id }}" class="albaran-checkbox" /></td>
+                    <td data-label="Nº ALBARÁN">{{ a.numero_albaran }}</td>
+                    <td data-label="CLIENTE">{{ a.contacto.nombre_fiscal }}</td>
+                    <td data-label="FECHA EMISIÓN">{{ a.fecha_emision.strftime('%d/%m/%Y') }}</td>
+                    <td data-label="FECHA ENTREGA">{{ a.fecha_entrega.strftime('%d/%m/%Y') if a.fecha_entrega else '-' }}</td>
+                    <td data-label="ESTADO">
+                        {% if a.estado == 'Borrador' %}
+                            <span class="pill pill-draft">Borrador</span>
+                        {% elif a.estado == 'Emitido' %}
+                            <span class="pill pill-sent">Emitido</span>
+                        {% elif a.estado == 'Facturado' %}
+                            <span class="pill pill-accepted">Facturado</span>
+                        {% elif a.estado == 'Anulado' %}
+                            <span class="pill pill-rejected">Anulado</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="ACCIONES" style="text-align: right;">
+                        <div class="actions-flex-container" style="justify-content: flex-end;">
+                            <a href="{{ url_for('delivery_notes.albaran_editar', albaran_id=a.id) }}" class="button secondary small">Editar</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not albaranes %}
+                <tr>
+                    <td colspan="7" class="no-data" style="text-align: center; color: #666; padding: 2rem;">No hay albaranes registrados en este estado.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="albaranSelectionFooter" class="selection-footer" style="display: none;">
+        <div class="selection-actions">
+            <button id="editDeliveryNote" class="button secondary small">Editar</button>
+            <button id="emitDeliveryNote" class="button secondary small">Marcar Emitido</button>
+            <button id="voidDeliveryNote" class="button secondary small">Anular</button>
+            <button id="downloadPdf" class="button secondary small">Descargar PDF</button>
+            <button id="deleteDeliveryNote" class="button danger small">Eliminar</button>
+        </div>
+    </div>
+</section>
+
+<script>
+    $(function() {
+        const albaranTable = $('#albaranTable');
+        const footer = $('#albaranSelectionFooter');
+        const selectedCount = $('#selectedCount');
+
+        function updateFooter() {
+            const checkedBoxes = albaranTable.find('tbody input[type="checkbox"]:checked');
+            const count = checkedBoxes.length;
+
+            if (count > 0) {
+                // Actualiza el texto dinámicamente según la cantidad
+                selectedCount.text(count + ' ' + (count === 1 ? 'elemento seleccionado' : 'elementos seleccionados'));
+                footer.show();
+            } else {
+                footer.hide();
+            }
+        }
+
+        // Cambio directo en el checkbox
+        albaranTable.on('change', 'tbody input[type="checkbox"]', function() {
+            const row = $(this).closest('tr');
+            row.toggleClass('row-selected', this.checked);
+            updateFooter();
+        });
+
+        // Permitir hacer clic en cualquier parte de la fila para seleccionar (igual que en facturas)
+        albaranTable.on('click', 'tbody tr', function(event) {
+            if (event.target.type !== 'checkbox' && event.target.tagName !== 'A' && event.target.tagName !== 'BUTTON') {
+                const checkbox = $(this).find('input[type="checkbox"]');
+                checkbox.prop('checked', !checkbox.prop('checked')).trigger('change');
+            }
+        });
+
+        // Selección múltiple / cabecera
+        $('#selectAll').on('change', function() {
+            const isChecked = this.checked;
+            albaranTable.find('tbody input[type="checkbox"]').each(function() {
+                $(this).prop('checked', isChecked).trigger('change');
+            });
+        });
+
+        function getSelectedAlbaranId() {
+            const checked = albaranTable.find('tbody input[type="checkbox"]:checked');
+            if (checked.length !== 1) {
+                return null;
+            }
+            return checked.val();
+        }
+
+        function postAction(url, successMsg) {
+            $.post(url).done(function() {
+                if(successMsg) alert(successMsg);
+                location.reload();
+            }).fail(function() {
+                alert('Ocurrió un error al procesar la acción.');
+            });
+        }
+
+        // Acciones del menú inferior
+        $('#editDeliveryNote').on('click', function() {
+            const id = getSelectedAlbaranId();
+            if (!id) {
+                alert('Selecciona un solo albarán para editar.');
+                return;
+            }
+            window.location.href = `/albaranes/${id}/editar`;
+        });
+
+        $('#emitDeliveryNote').on('click', function() {
+            const id = getSelectedAlbaranId();
+            if (!id) { alert('Selecciona un solo albarán.'); return; }
+            postAction(`/albaranes/${id}/emitir`, 'Albarán marcado como emitido de forma correcta.');
+        });
+
+        $('#voidDeliveryNote').on('click', function() {
+            const id = getSelectedAlbaranId();
+            if (!id) { alert('Selecciona un solo albarán.'); return; }
+            postAction(`/albaranes/${id}/anular`, 'Albarán marcado como anulado.');
+        });
+
+        $('#downloadPdf').on('click', function() {
+            const id = getSelectedAlbaranId();
+            if (!id) { alert('Selecciona un solo albarán para descargar.'); return; }
+            // Apunta exactamente a la ruta /descargar de tu controlador
+            window.location.href = `/albaranes/${id}/descargar`;
+        });
+
+        $('#deleteDeliveryNote').on('click', function() {
+            const id = getSelectedAlbaranId();
+            if (!id) { alert('Selecciona un solo albarán para eliminar.'); return; }
+            if (!confirm('¿Estás seguro de que deseas eliminar este albarán?')) return;
+            
+            $.post(`/albaranes/${id}/eliminar`).done(function() {
+                location.reload();
+            }).fail(function() {
+                alert('Error al eliminar el albarán.');
+            });
+        });
+
+        
+    // --- SISTEMA DE ORDENACIÓN DE TABLA REPLICADO ---
+        albaranTable.find('thead th').each(function(index) {
+            // Saltamos la columna 0 (checkboxes) y la última columna (acciones)
+            if (index > 0 && index < albaranTable.find('thead th').length - 1) {
+                $(this).addClass('sortable').css('cursor', 'pointer');
+                const currentText = $(this).text();
+                $(this).html(`<div class="th-content"><span>${currentText}</span> <i class="bi bi-arrow-down-up" style="font-size: 0.8rem; opacity: 0.5; margin-left: 5px;"></i></div>`);
+            }
+        });
+
+        albaranTable.on('click', 'th.sortable', function() {
+            const th = $(this);
+            const index = th.index();
+            const tbody = albaranTable.find('tbody');
+            const rows = tbody.find('tr').not(':has(td[colspan])').get(); // Excluir filas sin datos o informativas
+            
+            let asciiClass = 'asc';
+            if (th.hasClass('asc')) {
+                asciiClass = 'desc';
+                th.removeClass('asc').addClass('desc');
+            } else {
+                th.removeClass('desc').addClass('asc');
+            }
+            
+            albaranTable.find('th.sortable').not(th).removeClass('asc desc');
+
+            function getCellValue(row, idx) {
+                let text = $(row).children('td').eq(idx).text().trim();
+                
+                // Índices 3 y 4: FECHA EMISIÓN y FECHA ENTREGA (Formato DD/MM/YYYY)
+                if (idx === 3 || idx === 4) {
+                    if (!text || text === '-') return '';
+                    const parts = text.split('/');
+                    if (parts.length === 3) {
+                        return parts[2] + parts[1] + parts[0]; // Retorna YYYYMMDD para ordenar correctamente
+                    }
+                }
+                
+                // Texto genérico para Nº Albarán, Cliente y Estado
+                return text.toLowerCase();
+            }
+
+            rows.sort(function(a, b) {
+                const valA = getCellValue(a, index);
+                const valB = getCellValue(b, index);
+                
+                if (valA === valB) return 0;
+                
+                if (asciiClass === 'asc') {
+                    return valA > valB ? 1 : -1;
+                } else {
+                    return valA < valB ? 1 : -1;
+                }
+            });
+
+            $.each(rows, function(index, row) {
+                tbody.append(row);
+            });
+        });
+
+        updateFooter();
+    });
+</script>
+{% endblock %}

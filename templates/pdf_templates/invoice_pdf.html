@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #1a2232;
+            font-size: 11pt;
+            line-height: 1.5;
+        }
+        .header-table {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        .logo-container {
+            width: 15%;
+            vertical-align: top;
+            text-align: left;
+        }
+        .invoice-title {
+            font-size: 18pt;
+            font-weight: bold;
+            text-align: right;
+            color: #1a2232;
+        }
+        .details-table {
+            width: 100%;
+            margin-bottom: 40px;
+        }
+        .details-box {
+            width: 48%;
+            vertical-align: top;
+        }
+        .box-title {
+            font-size: 10pt;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .concepts-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        .concepts-table th {
+            background-color: #f3f4f6;
+            color: #1a2232;
+            font-weight: bold;
+            text-align: left;
+            padding: 5px;
+            font-size: 10pt;
+            border-bottom: 2px solid #d1d5db;
+        }
+        .payment-box {
+            font-size: 10pt;
+            color: #4b5563;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+        .totals-table {
+            width: 45%;
+            margin-bottom: 30px;
+        }
+        .totals-table td {
+            padding: 6px 10px;
+        }
+        .total-row {
+            font-size: 13pt;
+            font-weight: bold;
+            background-color: #f8fafc;
+        }
+        .footer-note {
+            margin-top: 60px;
+            font-size: 8pt;
+            color: #6b7280;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 15px;
+            line-height: 1.4;
+        }
+
+        .invoice-item-description, 
+        .invoice-item-description * {
+            display: inline !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.2 !important;
+        }
+    </style>
+</head>
+<body>
+    <table class="header-table" style="width: 100%;">
+        <tr>
+            <td class="logo-container">
+                {% if logo_base64 %}<img src="{{ logo_base64 }}" width="150" style="display: block; margin-bottom: 8px;" />{% else %}<div class="logo-title" style="font-size: 20pt; font-weight: bold; color: #d58a1d; margin-bottom: 0px;">{{ config.nombre_empresa if config and config.nombre_empresa else "AutoFactura" }}</div>{% endif %}
+            </td>
+            <td style="width: 80%; text-align: right; vertical-align: top;">
+                <span class="invoice-title" style="display: block;">
+                    {% if factura.tipo_factura == 'Rectificativa' %}
+                        FACTURA RECTIFICATIVA
+                    {% else %}
+                        FACTURA
+                    {% endif %}
+                </span>
+                <span style="font-size: 10.5pt; line-height: 1.4; display: block;">
+                    <strong>Número:</strong> {{ factura.numero_factura }}<br>
+                    <strong>Fecha:</strong> {{ factura.fecha_factura.strftime('%d/%m/%Y') if factura.fecha_factura else '' }}<br>
+                    {% if factura.referencia %}<strong>Referencia:</strong> {{ factura.referencia }}<br>{% endif %}
+                </span>
+            </td>
+        </tr>
+    </table>
+
+    <table class="details-table">
+        <tr>
+            <td class="details-box">
+                <div class="box-title">Emisor</div>
+                <strong>{{ config.nombre_empresa if config and config.nombre_empresa else '' }}</strong><br>
+                <span>CIF/NIF: {{ config.cif_nif if config and config.cif_nif else '' }}</span><br>
+                {{ config.direccion_fiscal if config and config.direccion_fiscal else '' }}<br>
+                {{ config.codigo_postal if config and config.codigo_postal else '' }} {{ config.ciudad if config and config.ciudad else '' }}<br>
+                {{ config.email if config and config.email else '' }}<br>
+                {{ config.telefono if config and config.telefono else '' }}
+            </td>
+            <td style="width: 4%;"></td>
+            <td class="details-box">
+                <div class="box-title">Cliente</div>
+                <strong>{{ cliente.nombre_fiscal if cliente else 'Cliente General' }}</strong><br>
+                <span>CIF/NIF: {{ cliente.numero_documento if cliente else '' }}</span><br>
+                {{ cliente.direccion_fiscal if cliente else '' }}<br>
+                {{ cliente.codigo_postal if cliente else '' }} {{ cliente.ciudad if cliente else '' }}<br>
+                {{ cliente.email_principal if cliente else '' }}<br>
+                {{ cliente.telefono if cliente else '' }}
+            </td>
+        </tr>
+    </table>
+
+    <table class="concepts-table">
+        <thead>
+            <tr>
+                <th style="width: 80%; padding: 6px 8px; font-size: 8.5pt;">Concepto / Descripción</th>
+                <th style="text-align: right; width: 8%; padding: 6px 4px; font-size: 8.5pt;">Uds.</th>
+                <th style="text-align: right; width: 13%; padding: 6px 4px; font-size: 8.5pt;">Precio</th>
+                <th style="text-align: right; width: 13%; padding: 6px 4px; font-size: 8.5pt;">Impuesto</th>
+                <th style="text-align: right; width: 13%; padding: 6px 4px; font-size: 8.5pt;">Importe</th>
+                <th style="text-align: right; width: 13%; padding: 6px 4px; font-size: 8.5pt;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in lineas %}
+            <tr>
+                <td style="padding: 6px 8px; font-size: 9pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; line-height: 1.2;">
+                    <span style="font-weight: bold; display: inline-block; margin-bottom: 2px;">{{ item.concepto }}</span>
+                    {% if item.informacion %}
+                        <br>
+                        <span class="invoice-item-description" style="font-style: italic; color: #6b7280; font-size: 8pt; display: inline-block;">
+                            {{ item.informacion | safe }}
+                        </span>
+                    {% endif %}
+                </td>
+                <td style="padding: 6px 2px; font-size: 8.5pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; text-align: right;">{{ item.unidades }}</td>
+                <td style="padding: 6px 2px; font-size: 8.5pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; text-align: right;">{{ "%.2f"|format(item.precio) }}</td>
+                <td style="padding: 6px 2px; font-size: 8.5pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; text-align: right; color: #4b5563;">{{ item.impuesto }}</td>
+                <td style="padding: 6px 2px; font-size: 8.5pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; text-align: right; color: #4b5563;">{{ "%.2f"|format(item.cuota_iva) }}</td>
+                <td style="padding: 6px 2px; font-size: 8.5pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold;">{{ "%.2f"|format(item.total) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table style="width: 100%; margin-top: 10px;">
+        <tr>
+            <td style="width: 55%;"></td> 
+            <td style="width: 45%; vertical-align: top;">
+                <table class="totals-table" style="width: 100%; border-collapse: collapse; float: right;">
+                    <tr>
+                        <td style="font-size: 10pt; color: #4b5563; padding: 3px 10px; border: none;">Base Imponible:</td>
+                        <td style="text-align: right; font-size: 10pt; padding: 3px 10px; border: none;">{{ "%.2f"|format(factura.total_base_imponible) }} €</td>
+                    </tr>
+                    <tr>
+                        <td style="font-size: 10pt; color: #4b5563; padding: 3px 10px; border: none;">{{ texto_iva_totales }}:</td>
+                        <td style="text-align: right; font-size: 10pt; padding: 3px 10px; border: none;">{{ "%.2f"|format(factura.total_cuota_iva) }} €</td>
+                    </tr>
+                    {% if factura.total_recargo_equivalencia %}
+                    <tr>
+                        <td style='font-size: 10pt; color: #4b5563; padding: 3px 10px; border: none;'>Recargo Equiv.:</td>
+                        <td style='text-align: right; font-size: 10pt; padding: 3px 10px; border: none;'>{{ "%.2f"|format(factura.total_recargo_equivalencia) }} €</td>
+                    </tr>
+                    {% endif %}
+                    {% if factura.porcentaje_irpf and factura.porcentaje_irpf > 0 %}
+                    <tr>
+                        <td style="font-size: 10pt; color: #4b5563; padding: 3px 10px; border: none;">Retención IRPF ({{ "%.0f"|format(factura.porcentaje_irpf) }}%):</td>
+                        <td style="text-align: right; font-size: 10pt; padding: 3px 10px; border: none;">-{{ "%.2f"|format(factura.total_retencion_irpf) }} €</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td colspan="2" style="padding: 4px 10px 0 10px;"><div style="border-top: 1px solid #e5e7eb; height: 1px; font-size: 1px;">&nbsp;</div></td>
+                    </tr>
+                    <tr class="total-row">
+                        <td style="padding: 6px 10px; font-weight: bold;">TOTAL:</td>
+                        <td style="text-align: right; padding: 6px 10px; color: #1a2232; font-weight: bold;">{{ "%.2f"|format(factura.total_factura) }} €</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <div style="width: 100%; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+        <div class="payment-box">
+            <strong>Método de pago:</strong> {{ metodo_pago.tipo if metodo_pago else 'Transferencia bancaria' }}
+            
+            {% if metodo_pago and (metodo_pago.entidad or metodo_pago.cuenta_iban) %}
+                <br>
+                <span style="font-size: 9pt; color: #374151;">
+                    {% if metodo_pago.entidad %}<strong>Entidad:</strong> {{ metodo_pago.entidad }} | {% endif %}
+                    {% if metodo_pago.cuenta_iban %}<strong>IBAN:</strong> {{ metodo_pago.cuenta_iban }}{% endif %}
+                </span>
+            {% endif %}
+
+            {% if config and config.nota_legal %}
+                <div style="font-size: 9pt; color: #6b7280; margin-top: 10px;">
+                    {{ config.nota_legal|replace('\n', '<br>')|safe }}
+                </div>
+            {% endif %}
+        </div>
+
+        {% if qr_base64 %}
+        <div style="margin-top: 20px; text-align: center;">
+            <img src="data:image/png;base64,{{ qr_base64 }}" width="80" height="80" />
+            <span style="font-size: 7.5pt; color: #374151; font-weight: bold; display: block; margin-top: 5px;">
+                Factura verificable en la sede electrónica de la AEAT
+            </span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="footer-note">
+        
+    </div>
+</body>
+</html>

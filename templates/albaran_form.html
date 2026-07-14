@@ -1,0 +1,478 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header space-between">
+    <div>
+        <a href="{{ url_for('delivery_notes.albaranes') }}" class="button primary">← Volver</a>
+        <h1>{% if albaran %}Editar albarán{% else %}Crear albarán{% endif %}</h1>
+    </div>
+    <div class="page-actions">
+        <button type="submit" form="albaranForm" class="button primary">Guardar albarán</button>
+        <button type="button" id="previewPdfButton" class="button secondary small">Previsualizar PDF</button>
+    </div>
+</div>
+
+<form method="post" id="albaranForm" novalidate>
+
+    {% set initial_rows = lineas|length if lineas else 5 %}
+    {% set render_rows = initial_rows if initial_rows >= 5 else 5 %}
+    <input type="hidden" name="lineas_count" id="lineas_count" value="{{ render_rows }}" />
+
+    <section class="panel panel-section">
+        <div class="section-row">
+            <div class="section-column">
+                <div class="field-group">
+                    <label>Cliente*</label>
+                    <select name="contacto_id" required>
+                        <option value="">Seleccionar cliente</option>
+                        {% for c in contactos %}
+                            <option value="{{ c.id }}"{% if selected_contacto_id is defined and selected_contacto_id|string == c.id|string %} selected{% endif %}>{{ c.nombre_fiscal }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="section-column compact" style="min-width: 250px;">
+                <div class="field-group">
+                    <label>Número de albarán*</label>
+                    <input type="text" name="numero_albaran" value="{{ numero_albaran }}" required />
+                </div>
+            </div>
+            <div class="section-column compact" style="min-width: 250px;">
+                <div class="field-group">
+                    <label>Método de Pago (Asociado)</label>
+                    <select name="metodo_pago_id">
+                        <option value="">Ninguno</option>
+                        {% for m in metodos_pago %}
+                            <option value="{{ m.id }}"{% if selected_metodo_pago_id is defined and selected_metodo_pago_id|string == m.id|string %} selected{% endif %}>{{ m.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-row">
+            <div class="section-column compact">
+                <div class="field-group">
+                    <label>Fecha Emisión*</label>
+                    <input type="date" name="fecha_emision" value="{{ fecha_emision if fecha_emision else date_today }}" required />
+                </div>
+            </div>
+            <div class="section-column compact">
+                <div class="field-group">
+                    <label>Fecha Entrega</label>
+                    <input type="date" name="fecha_entrega" value="{{ fecha_entrega if fecha_entrega else '' }}" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel panel-section" style="margin-top: 1rem;">
+        <div class="section-row">
+            <div class="section-column" style="grid-column: span 12;">
+                <label style="display: block; margin-bottom: 0.8rem; font-weight: bold;">¿Vincular este albarán a un documento previo?</label>
+                <div class="radio-group-responsive" style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;">
+                    <label class="radio-label-clickable" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 0;">
+                        <input type="radio" name="origen_referencia" value="ninguno" {% if not referencia and not referencia_presupuesto %}checked{% endif %}> Albarán libre (Sin vinculación)
+                    </label>
+                    <label class="radio-label-clickable" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 0;">
+                        <input type="radio" name="origen_referencia" value="factura" {% if referencia %}checked{% endif %}> Desde Factura existente
+                    </label>
+                    <label class="radio-label-clickable" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 0;">
+                        <input type="radio" name="origen_referencia" value="presupuesto" {% if referencia_presupuesto %}checked{% endif %}> Desde Presupuesto existente
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-row" style="margin-top: 1rem;">
+            <div class="section-column" style="grid-column: span 6;">
+                <div class="field-group">
+                    <label>Referencia Externa (Factura)</label>
+                    <select name="referencia">
+                        <option value="">Ninguna factura asociada</option>
+                        {% for f in facturas %}
+                            <option value="{{ f.numero_factura }}" {% if referencia is defined and referencia|string == f.numero_factura|string %}selected{% endif %}>
+                                {{ f.numero_factura }} {% if f.contacto %}- {{ f.contacto.nombre_fiscal }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="section-column" style="grid-column: span 6;">
+                <div class="field-group">
+                    <label>Referencia Presupuesto</label>
+                    <select name="referencia_presupuesto">
+                        <option value="">Ningún presupuesto asociado</option>
+                        {% for p in presupuestos %}
+                            <option value="{{ p.numero_presupuesto }}" {% if referencia_presupuesto is defined and referencia_presupuesto|string == p.numero_presupuesto|string %}selected{% endif %}>
+                                {{ p.numero_presupuesto }} {% if p.contacto %}- {{ p.contacto.nombre_fiscal }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel" style="margin-top: 1rem;">
+        <div class="panel-header">
+            <h2>Líneas del albarán</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="items-table data-table-form">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;"></th>
+                        <th style="width: 35%;">Artículo / Concepto</th>
+                        <th style="width: 45%;">Descripción detallada / Notas de línea</th>
+                        <th style="width: 15%; text-align: right;">Unidades</th>
+                    </tr>
+                </thead>
+                <tbody id="lineasContainer">
+                    {% for i in range(render_rows) %}
+                        {% set item = lineas[i] if lineas and i < lineas|length else None %}
+                        <tr class="line-item-row" data-index="{{ i }}">
+                            <td data-label="ACCION" class="td-action-center">
+                                <button type="button" class="search-product-btn-dark" title="Buscar en catálogo">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </td>
+                            <td data-label="ARTÍCULO / CONCEPTO">
+                                <input type="hidden" name="articulo_id_{{ i }}" value="{{ item.producto_id if item and item.producto_id else '' }}" />
+                                <input type="text" name="concepto_{{ i }}" value="{{ item.concepto if item else '' }}" placeholder="Nombre del artículo o servicio" />
+                            </td>
+                            <td data-label="DESCRIPCIÓN / NOTAS">
+                                <input type="text" name="informacion_{{ i }}" value="{{ item.informacion if item else '' }}" placeholder="Detalles de la entrega (lote, nº serie, etc.)" />
+                            </td>
+                            <td data-label="UNIDADES">
+                                <input type="number" step="0.01" name="unidades_{{ i }}" value="{{ item.unidades if item else '1.00' }}" style="text-align: right;" />
+                            </td>
+                            
+                            <input type="hidden" name="precio_{{ i }}" value="{{ item.precio_unitario if item and item.precio_unitario is defined else '0.00' }}" />
+                            <input type="hidden" name="descuento_{{ i }}" value="{{ item.descuento_porcentaje if item and item.descuento_porcentaje is defined else '0.00' }}" />
+                            <input type="hidden" name="impuesto_{{ i }}" value="{{ item.impuesto_tipo if item and item.impuesto_tipo is defined else '21% IVA' }}" />
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="line-actions" style="margin-top: 1rem;">
+            <button type="button" class="button secondary small" id="addRowBtn">+ Añadir Línea</button>
+        </div>
+    </section>
+
+    <section class="panel" style="margin-top: 1rem;">
+        <div class="field-group">
+            <label>Notas / Observaciones del Albarán</label>
+            <textarea name="notas" rows="4" placeholder="Instrucciones de entrega, condiciones o comentarios logísticos...">{{ notes if notes else '' }}</textarea>
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button type="submit" class="button primary">Guardar albarán</button>
+    </div>
+</form>
+
+<section id="previewContainer" class="panel" style="display: none; margin-top: 2rem; border-top: 3px solid var(--primary-color);">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0;">Vista previa del albarán</h2>
+        <div class="button-group">
+            <button type="button" id="saveFromPreviewBtn" class="button primary small">Guardar albarán ahora</button>
+            <button type="button" id="downloadPreviewBtn" class="button secondary small">Descargar PDF</button>
+            <button type="button" class="button secondary small" onclick="document.getElementById('previewContainer').style.display='none'">Cerrar</button>
+        </div>
+    </div>
+    <iframe id="previewIframe" style="width: 100%; height: 800px; border: 1px solid #ddd; border-radius: 4px; margin-top: 1rem;"></iframe>
+</section>
+
+<div id="modalProductos" class="modal-overlay-responsive" style="display: none;">
+    <div class="modal-box-responsive">
+        <div class="modal-header-flex">
+            <h2>Catálogo de productos</h2>
+            <span id="closeModal" class="modal-close-icon">&times;</span>
+        </div>
+        <input type="text" id="filtroProductos" placeholder="Buscar por nombre..." onkeyup="filtrarLista()" style="width: 100%; margin-bottom: 1rem;" />
+        <ul id="listaCatalogo" class="modal-list-dark"></ul>
+    </div>
+</div>
+
+<script>
+    const productos_data = JSON.parse('{{ productos_json|safe }}');
+    let filaParaRellenar = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('lineasContainer');
+        const countInput = document.getElementById('lineas_count');
+        let totalRows = parseInt(countInput.value);
+
+        const radiosOrigen = document.querySelectorAll('input[name="origen_referencia"]');
+        const selectFactura = document.querySelector('select[name="referencia"]');
+        const selectPresupuesto = document.querySelector('select[name="referencia_presupuesto"]');
+
+        // Captura de elementos del Modal de Preview
+        const previewBtn = document.getElementById('previewPdfButton');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewIframe = document.getElementById('previewIframe');
+        const hidePreviewBtn = document.getElementById('hidePreviewBtn');
+
+        if (previewBtn) {
+            previewBtn.addEventListener('click', function() {
+                const form = document.getElementById('albaranForm');
+                const formData = new FormData(form);
+
+                // Captura del botón Guardar desde Preview dentro de DOMContentLoaded
+const saveFromPreviewBtn = document.getElementById('saveFromPreviewBtn');
+
+if (saveFromPreviewBtn) {
+    saveFromPreviewBtn.addEventListener('click', function() {
+        const form = document.getElementById('albaranForm');
+        
+        // Validamos de forma nativa si los campos requeridos (Cliente, Nº Albarán, etc.) están llenos
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        // Enviamos el formulario de manera tradicional
+        form.submit();
+    });
+}
+
+                // Mostramos el contenedor inferior e inicializamos el iframe
+                previewContainer.style.display = 'block';
+                previewIframe.src = ''; 
+
+                // Hacemos un scroll suave automático para llevar al usuario a la zona del PDF
+                previewContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                fetch("{{ url_for('delivery_notes.albaran_preview') }}", {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en previsualización');
+                    return response.blob();
+                })
+                .then(blob => {
+                    const blobUrl = URL.createObjectURL(blob);
+                    previewIframe.src = blobUrl;
+                })
+                .catch(err => {
+                    console.error(err);
+                    previewIframe.srcdoc = `<p style="color: red; padding: 20px; font-family: sans-serif;">Error al generar el PDF de previsualización.</p>`;
+                });
+            });
+        }
+
+        if (hidePreviewBtn) {
+            hidePreviewBtn.addEventListener('click', function() {
+                previewContainer.style.display = 'none';
+                previewIframe.src = '';
+            });
+        }
+
+        // 1. Control visual y de estado de los campos vinculados
+        function gestionarEstadoCampos(origenSeleccionado) {
+            if (origenSeleccionado === 'factura') {
+                selectFactura.disabled = false;
+                selectFactura.style.backgroundColor = '';
+                selectFactura.style.opacity = '1';
+
+                selectPresupuesto.disabled = true;
+                selectPresupuesto.value = '';
+                selectPresupuesto.style.backgroundColor = '#f5f5f5';
+                selectPresupuesto.style.opacity = '0.6';
+            } else if (origenSeleccionado === 'presupuesto') {
+                selectPresupuesto.disabled = false;
+                selectPresupuesto.style.backgroundColor = '';
+                selectPresupuesto.style.opacity = '1';
+
+                selectFactura.disabled = true;
+                selectFactura.value = '';
+                selectFactura.style.backgroundColor = '#f5f5f5';
+                selectFactura.style.opacity = '0.6';
+            } else { // ninguno
+                selectFactura.disabled = true;
+                selectFactura.value = '';
+                selectFactura.style.backgroundColor = '#f5f5f5';
+                selectFactura.style.opacity = '0.6';
+
+                selectPresupuesto.disabled = true;
+                selectPresupuesto.value = '';
+                selectPresupuesto.style.backgroundColor = '#f5f5f5';
+                selectPresupuesto.style.opacity = '0.6';
+            }
+        }
+
+        // Escuchar cambios en los Radio Buttons
+        radiosOrigen.forEach(radio => {
+            radio.addEventListener('change', function() {
+                gestionarEstadoCampos(this.value);
+            });
+        });
+
+        // Inicialización del estado por defecto (Crucial para el modo Edición)
+        const radioInicial = document.querySelector('input[name="origen_referencia"]:checked');
+        if (radioInicial) {
+            gestionarEstadoCampos(radioInicial.value);
+        }
+
+        // 2. Función AJAX para rellenar las líneas del Albarán
+        function cargarLineasDesdeEndpoint(url) {
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Error de red al recuperar las líneas');
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data || !data.lineas) return;
+
+                    // Vaciamos por completo el cuerpo de la tabla
+                    container.innerHTML = '';
+                    totalRows = 0;
+
+                    // Si no contiene líneas el documento origen, inicializamos una vacía por comodidad
+                    if (data.lineas.length === 0) {
+                        agregarNuevaFilaVacia();
+                        return;
+                    }
+
+                    // Mapeamos los datos devueltos por la API de Flask
+                    data.lineas.forEach(linea => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'line-item-row';
+                        tr.setAttribute('data-index', totalRows);
+                        tr.style.borderBottom = '1px solid #eee';
+                        
+                        // Soportamos tanto 'articulo_id'/'producto_id', como 'precio'/'precio_unitario', etc.
+                        const artId = linea.articulo_id || linea.producto_id || '';
+                        const concepto = linea.concepto || '';
+                        const info = linea.informacion || '';
+                        const unds = parseFloat(linea.unidades || 1).toFixed(2);
+                        const precio = parseFloat(linea.precio || linea.precio_unitario || 0).toFixed(2);
+                        const desc = parseFloat(linea.descuento || linea.descuento_porcentaje || 0).toFixed(2);
+                        const imp = linea.impuesto || linea.impuesto_tipo || '21% IVA';
+
+                        tr.innerHTML = `
+                            <td style="padding: 8px; text-align: center;">
+                                <button type="button" class="search-product-btn" style="background: none; border: none; cursor: pointer; color: #007bff;" title="Buscar en catálogo">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </td>
+                            <td style="padding: 8px;">
+                                <input type="hidden" name="articulo_id_${totalRows}" value="${artId}" />
+                                <input type="text" name="concepto_${totalRows}" value="${concepto}" placeholder="Nombre del artículo o servicio" style="width: 100%;" />
+                            </td>
+                            <td style="padding: 8px;">
+                                <input type="text" name="informacion_${totalRows}" value="${info}" placeholder="Detalles de la entrega (lote, nº serie, etc.)" style="width: 100%;" />
+                            </td>
+                            <td style="padding: 8px;">
+                                <input type="number" step="0.01" name="unidades_${totalRows}" value="${unds}" style="width: 100%; text-align: right;" />
+                            </td>
+                            <input type="hidden" name="precio_${totalRows}" value="${precio}" />
+                            <input type="hidden" name="descuento_${totalRows}" value="${desc}" />
+                            <input type="hidden" name="impuesto_${totalRows}" value="${imp}" />
+                        `;
+                        container.appendChild(tr);
+                        totalRows++;
+                    });
+
+                    // Actualizar el contador general
+                    countInput.value = totalRows;
+                })
+                .catch(err => console.error("Error al poblar las líneas:", err));
+        }
+
+        // Escuchar cambios en los SELECTS
+        selectFactura.addEventListener('change', function() {
+            if (this.value) {
+                cargarLineasDesdeEndpoint(`/albaranes/api/lineas-factura/${encodeURIComponent(this.value)}`);
+            }
+        });
+
+        selectPresupuesto.addEventListener('change', function() {
+            if (this.value) {
+                cargarLineasDesdeEndpoint(`/albaranes/api/lineas-presupuesto/${encodeURIComponent(this.value)}`);
+            }
+        });
+
+        // 3. Lógica para el botón "+ Añadir Línea" manual
+        function agregarNuevaFilaVacia() {
+            const tr = document.createElement('tr');
+            tr.className = 'line-item-row';
+            tr.setAttribute('data-index', totalRows);
+            tr.style.borderBottom = '1px solid #eee';
+            tr.innerHTML = `
+                <td style="padding: 8px; text-align: center;">
+                    <button type="button" class="search-product-btn" style="background: none; border: none; cursor: pointer; color: #007bff;" title="Buscar en catálogo">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </td>
+                <td style="padding: 8px;">
+                    <input type="hidden" name="articulo_id_${totalRows}" value="" />
+                    <input type="text" name="concepto_${totalRows}" value="" placeholder="Nombre del artículo o servicio" style="width: 100%;" />
+                </td>
+                <td style="padding: 8px;">
+                    <input type="text" name="informacion_${totalRows}" value="" placeholder="Detalles de la entrega (lote, nº serie, etc.)" style="width: 100%;" />
+                </td>
+                <td style="padding: 8px;">
+                    <input type="number" step="0.01" name="unidades_${totalRows}" value="1.00" style="width: 100%; text-align: right;" />
+                </td>
+                <input type="hidden" name="precio_${totalRows}" value="0.00" />
+                <input type="hidden" name="descuento_${totalRows}" value="0.00" />
+                <input type="hidden" name="impuesto_${totalRows}" value="21% IVA" />
+            `;
+            container.appendChild(tr);
+            totalRows++;
+            countInput.value = totalRows;
+        }
+
+        document.getElementById('addRowBtn').addEventListener('click', agregarNuevaFilaVacia);
+
+        // 4. Lógica del Modal del catálogo de productos
+        document.getElementById('closeModal').onclick = () => {
+            document.getElementById('modalProductos').style.display = 'none';
+        };
+
+        container.addEventListener('click', function(e) {
+            if (e.target.closest('.search-product-btn')) {
+                filaParaRellenar = e.target.closest('tr');
+                document.getElementById('modalProductos').style.display = 'block';
+                document.getElementById('filtroProductos').value = '';
+                renderizarLista(productos_data);
+            }
+        });
+
+        window.filtrarLista = function() {
+            const term = document.getElementById('filtroProductos').value.toLowerCase();
+            const filtered = productos_data.filter(p => p.nombre.toLowerCase().includes(term));
+            renderizarLista(filtered);
+        };
+
+        function renderizarLista(data) {
+            const lista = document.getElementById('listaCatalogo');
+            lista.innerHTML = '';
+            data.forEach(p => {
+                const li = document.createElement('li');
+                li.style.padding = '10px';
+                li.style.borderBottom = '1px solid #eee';
+                li.style.cursor = 'pointer';
+                li.innerHTML = `<strong>${p.nombre}</strong>`;
+                li.onclick = () => {
+                    if (filaParaRellenar) {
+                        const idx = filaParaRellenar.getAttribute('data-index');
+                        filaParaRellenar.querySelector(`input[name="concepto_${idx}"]`).value = p.nombre;
+                        filaParaRellenar.querySelector(`input[name="precio_${idx}"]`).value = parseFloat(p.precio).toFixed(2);
+                        filaParaRellenar.querySelector(`input[name="impuesto_${idx}"]`).value = p.impuesto;
+                        if (p.descripcion_adicional) {
+                            filaParaRellenar.querySelector(`input[name="informacion_${idx}"]`).value = p.descripcion_adicional;
+                        }
+                        document.getElementById('modalProductos').style.display = 'none';
+                    }
+                };
+                lista.appendChild(li);
+            });
+        }
+    });
+</script>
+{% endblock %}

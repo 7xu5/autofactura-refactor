@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header space-between">
+    <div>
+        <a href="{{ url_for('products.productos') }}" class="button primary">← Volver</a>
+        <h1>{{ 'Editar producto' if producto else 'Añadir producto' }}</h1>
+        <p>Registro del catálogo de productos y servicios</p>
+    </div>
+    <div class="page-actions">
+        <button type="submit" form="productoForm" class="button primary">Guardar producto</button>
+    </div>
+</div>
+
+<form method="post" id="productoForm">
+<section class="panel grid-2">
+    <div>
+        <label>Nombre del producto/servicio*</label>
+        <input type="text" name="nombre" value="{{ producto.nombre if producto else '' }}" required />
+        
+        <label>Código/Referencia</label>
+        <input type="text" name="codigo" value="{{ producto.codigo if producto else (nuevo_codigo if nuevo_codigo else '') }}" />
+        
+        <label>Precio unitario base*</label>
+        <input type="number" step="0.01" name="precio_unitario_base" value="{{ producto.precio_unitario_base if producto else '' }}" required />
+        
+        <label>Impuesto asociado*</label>
+        <select name="impuesto_defecto">
+            {% for imp in ['0% Exenta', '4% IVA', '10% IVA', '21% IVA', '3% IGIC', '7% IGIC', '9% IGIC', '13% IGIC'] %}
+                <option value="{{ imp }}" {% if (producto and producto.impuesto_defecto == imp) or (not producto and imp == '0%') %}selected{% endif %}>{{ imp }}</option>
+            {% endfor %}
+        </select>
+        
+        <label>Descripción </label>
+        <textarea name="descripcion" rows="4">{{ producto.descripcion if producto else '' }}</textarea>
+        
+        <label>Información adicional </label>
+        <textarea name="descripcion_adicional" rows="3" placeholder="Este texto aparecerá al seleccionar el producto en facturas">{{ producto.descripcion_adicional if producto else '' }}</textarea>
+    </div>
+    
+    <aside class="panel-info">
+        <h3>Atención</h3>
+        <p>Los productos registrados se ofrecerán en el autocompletado durante la creación de facturas.</p>
+    </aside>
+</section>
+<div class="form-actions">
+    <button type="submit" class="button primary">Guardar producto</button>
+</div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    
+    if (form) {
+        form.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                // Permitimos el Enter si está en un textarea o si está sobre el botón de guardar
+                if (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'BUTTON' && e.target.type === 'submit')) {
+                    return;
+                }
+
+                // Evitamos que el formulario se envíe
+                e.preventDefault();
+
+                // Filtramos los elementos interactivos, visibles y no deshabilitados
+                const formElements = Array.from(this.elements).filter(el => {
+                    return (
+                        el.tagName === 'INPUT' || 
+                        el.tagName === 'SELECT' || 
+                        el.tagName === 'TEXTAREA' || 
+                        (el.tagName === 'BUTTON' && el.type !== 'button')
+                    ) && !el.readOnly && !el.disabled && el.type !== 'hidden' && el.style.display !== 'none';
+                });
+
+                const currentIndex = formElements.indexOf(e.target);
+
+                // Si hay un siguiente elemento, movemos el foco
+                if (currentIndex > -1 && currentIndex + 1 < formElements.length) {
+                    const nextElement = formElements[currentIndex + 1];
+                    nextElement.focus();
+                    
+                    // Si es un input de texto o número, seleccionamos el contenido para agilizar la edición
+                    if (nextElement.tagName === 'INPUT' && typeof nextElement.select === 'function') {
+                        nextElement.select();
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

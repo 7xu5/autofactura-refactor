@@ -1,0 +1,749 @@
+{% extends 'base.html' %}
+{% block content %}
+<form method="post" novalidate>
+<div class="page-header space-between">
+    <div>
+        <a href="{{ url_for('invoices.facturas') }}" class="button primary">← Volver</a>
+        <h1>{{ 'Editar factura' if edit_mode else 'Crear factura' }}</h1>
+        
+    </div>
+    <div class="page-actions">
+        {% if edit_mode %}
+            {% if factura.estado_ui == 'Borrador' %}
+                <button type="submit" class="button primary">Emitir factura</button>
+            {% else %}
+                <button type="submit" class="button primary">Actualizar factura</button>
+            {% endif %}
+        {% else %}
+            <button type="submit" class="button primary">Guardar factura</button>
+        {% endif %}
+        <button type="submit" name="guardar_borrador" value="1" class="button secondary small">Guardar borrador</button>
+        <button type="button" id="previewButton" class="button secondary small">Previsualizar datos</button>
+        
+    </div>
+</div>
+
+
+<section class="panel panel-section">
+    <div class="section-row">
+        <div class="section-column">
+            <div class="field-group">
+                <label>Cliente*</label>
+                <select name="contacto_id" required>
+                    <option value="">Seleccionar cliente</option>
+                    {% for c in contactos %}
+                        <option value="{{ c.id }}" 
+                        data-impuesto="{{ c.impuesto_defecto or '21% IVA' }}" 
+                        data-direccion="{{ c.direccion_fiscal or '' }}" 
+                        data-ciudad="{{ c.ciudad or '' }}" 
+                        data-provincia="{{ c.provincia or '' }}" 
+                        data-pais="{{ c.pais or '' }}" 
+                        data-nif="{{ c.numero_documento or '' }}"
+                        data-email="{{ c.email_principal or '' }}"
+                        data-telefono="{{ c.telefono or '' }}"
+                        {% if selected_contacto_id is defined and selected_contacto_id == c.id %} selected{% endif %}>{{ c.nombre_fiscal }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="field-group">
+            <button type="button" class="button secondary small" 
+                    onclick="abrirPopupContacto()" 
+                    title="Crear nuevo cliente" 
+                    style="padding: 0 0.75rem; display: flex; align-items: center; justify-content: center; height: 2.35rem;">
+                <i class="bi bi-person-plus-fill" style="font-size: 1.1rem;"></i>
+            </button>    
+        </div>
+        
+        <div class="section-column" style="display: none;">
+            <div class="field-group">
+                <label>Serie de factura*</label>
+                <input type="text" name="serie_factura" value="{{ configuracion.serie_factura if configuracion else 'F26-' }}" disabled />
+            </div>
+        </div>
+        <div class="section-column">
+            <div class="field-group">
+                <label>Número de factura*</label>
+                <input type="text" name="numero_factura" value="{{ numero_factura }}" required />
+            </div>
+        </div>
+        <div class="section-column compact">
+            <div class="field-group">
+                <label>Referencia</label>
+                <input type="text" name="referencia" value="{{ referencia if referencia is defined else '' }}" />
+            </div>
+        </div>
+    </div>
+    <div class="section-row">
+        <div class="section-column">
+            <label>Fecha de factura*</label>
+            <input type="date" name="fecha_factura" required value="{{ fecha_factura if fecha_factura is defined else date.today().isoformat() }}" />
+        </div>
+        <div class="section-column">
+            <label>Vencimiento</label>
+            <input type="date" name="fecha_vencimiento" value="{{ fecha_vencimiento if fecha_vencimiento is defined else '' }}" />
+        </div>
+    </div>
+</section>
+<section class="panel">
+    <div class="panel-header"><h2>Líneas de la factura</h2></div>
+    {% set initial_rows = lineas|length if lineas else 1 %}
+    {% set render_rows = initial_rows if initial_rows >= 1 else 1 %}
+    <input type="hidden" name="lineas_count" id="lineas_count" value="{{ render_rows }}" />
+    <table class="data-table line-items">
+        <thead>
+            <tr><th>Concepto*</th><th>Unidades*</th><th>Precio*</th><th>Impuestos*</th><th>% Desc.</th><th>Total</th></tr>
+        </thead>
+        <tbody id="lineItemsBody">
+            {% for i in range(1, render_rows + 1) %}
+                {% set linea = lineas[i-1] if lineas and i-1 < lineas|length else None %}
+                <tr class="line-item-row">
+                    <td data-label="Concepto" style="display: flex; gap: 5px; align-items: center; width: auto;">
+                        <input type="text" name="concepto_{{ i }}" placeholder="Añadir concepto" value="{{ linea.concepto if linea else '' }}" style="flex-grow: 1;" />
+                        <button type="button" class="button secondary xsmall btn-catalogo" title="Catálogo">+</button>
+                    </td>
+                    <td data-label="Cantidad"><input type="number" name="unidades_{{ i }}" step="any" value="{{ linea.unidades if linea else '1' }}" /></td>
+                    <td data-label="Precio ud."><input type="number" step="0.01" name="precio_{{ i }}" value="{{ linea.precio if linea else '0.00' }}" /></td>
+                    <td data-label="Impuestos">
+                        <select name="impuesto_{{ i }}">
+                            <option value=""{% if not linea or not linea.impuesto %} selected{% endif %} disabled hidden>Selecciona impuesto</option>
+                            <option value="0% Exento"{% if linea and linea.impuesto == '0% Exento' %} selected{% endif %}>0% Exento</option>
+                            <option value="4% IVA"{% if linea and linea.impuesto == '4% IVA' %} selected{% endif %}>4% IVA</option>
+                            <option value="10% IVA"{% if linea and linea.impuesto == '10% IVA' %} selected{% endif %}>10% IVA</option>
+                            <option value="21% IVA"{% if linea and linea.impuesto == '21% IVA' %} selected{% endif %}>21% IVA</option>
+                            <option value="3% IGIC"{% if linea and linea.impuesto == '3% IGIC' %} selected{% endif %}>3% IGIC</option>
+                            <option value="7% IGIC"{% if linea and linea.impuesto == '7% IGIC' %} selected{% endif %}>7% IGIC</option>
+                            <option value="9% IGIC"{% if linea and linea.impuesto == '9% IGIC' %} selected{% endif %}>9% IGIC</option>
+                            <option value="13% IGIC"{% if linea and linea.impuesto == '13% IGIC' %} selected{% endif %}>13% IGIC</option>
+                        </select>
+                    </td>
+                    <td data-label="% Descuento"><input type="number" step="0.01" name="descuento_{{ i }}" value="{{ linea['descuento'] if linea and 'descuento' in linea else '0' }}" /></td>
+                    <td data-label="Total">
+                        <div class="line-total-with-action">
+                            <input type="text" disabled class="line-total" value="{{ linea.total if linea else '0.00' }}" />
+                            <button type="button" class="button secondary xsmall delete-line-button" title="Eliminar">×</button>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="line-detail-row">
+                    <td colspan="6" data-label="Información">
+                        <textarea name="informacion_{{ i }}" class="line-detail-text" placeholder="Información adicional">{{ linea['informacion'] if linea and 'informacion' in linea else '' }}</textarea>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="line-actions">
+        <button type="button" id="addLineButton" class="button secondary small">+ Añadir línea de concepto</button>
+        <button type="button" id="addTitleButton" class="button secondary small">+ Añadir cabecera</button>
+    </div>
+</section>
+<section class="panel panel-section">
+    <div class="section-row reverse">
+        <div class="summary-panel">
+            <div class="field-group toggle-panel">
+                <label>Método de Pago*</label>
+                <select name="metodo_pago_id" required>
+                    <option value="">Selecciona un método</option>
+                    {% for mp in metodos_pago %}
+                        <option value="{{ mp.id }}" 
+                                data-tipo="{{ mp.tipo }}" 
+                                data-entidad="{{ mp.entidad or '' }}" 
+                                data-iban="{{ mp.cuenta_iban or '' }}"
+                                {% if selected_metodo_pago_id is defined and selected_metodo_pago_id == mp.id %}selected{% endif %}>
+                            {{ mp.nombre }} ({{ mp.tipo }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <small>Este método aparecerá en la zona inferior del PDF.</small>
+                <a href="{{ url_for('config.configuracion') }}" 
+                    target="_blank" 
+                    class="button secondary small"
+                    onclick="window.open(this.href, 'GestionMetodosPago', 'width=900,height=700,scrollbars=yes,resizable=yes'); return false;"> Gestionar Métodos de Pago</a>
+            </div>
+            
+            <div id="verifactu-password-box" class="field-group toggle-panel alert-warning-box" style="margin-top: 1.5rem;">
+                <label><strong>🔑 Contraseña del Certificado</strong></label>
+                <input type="password" name="cert_password" id="cert_password" placeholder="Requerido para enviar a la AEAT" />
+                <p class="note" style="font-size: 0.8rem; margin-top: 0.4rem; color: var(--muted);">Introduzca la clave para firmar digitalmente la factura. No se guardará en el sistema.</p>
+            </div>
+        </div>
+        
+        <aside class="summary-box">
+            <div class="summary-row"><span>Base imponible</span><strong id="summary_base">0.00 €</strong></div>
+            <div class="summary-row"><span id="summary_tax_label">IVA</span><strong id="summary_iva">0.00 €</strong></div>
+            
+            <div class="summary-row" style="align-items: center; gap: 10px;">
+                <span>Retención IRPF</span>
+                <select name="porcentaje_irpf" id="porcentaje_irpf" style="width: auto; padding: 2px 5px; height: auto; margin: 0;" onchange="calculateTotals()">
+                    <option value="0" {% if factura and factura.porcentaje_irpf == 0 %}selected{% endif %}>0%</option>
+                    <option value="7" {% if factura and factura.porcentaje_irpf == 7 %}selected{% endif %}>7% (Inicio actividad)</option>
+                    <option value="15" {% if factura and factura.porcentaje_irpf == 15 %}selected{% endif %}>15% (General)</option>
+                    <option value="20" {% if factura and factura.porcentaje_irpf == 20 %}selected{% endif %}>20% (Histórico / Especial)</option>
+                </select>
+                <strong id="summary_irpf" style="color: #c0392b;">0.00 €</strong>
+            </div>
+
+            <div class="summary-row total"><span>Total</span><strong id="summary_total">0.00 €</strong></div>
+        </aside>
+    </div>
+
+    <div id="productos-data" data-json='{{ productos | tojson | safe }}' style="display:none;"></div>
+</section>
+
+<div class="form-actions">
+    {% if edit_mode and factura.estado_ui == 'Borrador' %}
+        <button type="submit" class="button primary">Emitir factura</button>
+    {% elif edit_mode %}
+        <button type="submit" class="button primary">Actualizar factura</button>
+    {% else %}
+        <button type="submit" class="button primary">Guardar factura</button>
+    {% endif %}
+</div>
+
+<section id="previewContainer" class="panel" style="display: none; margin-top: 2rem; border-top: 3px solid var(--primary-color);">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0;">Vista previa de la factura</h2>
+        <div class="button-group">
+            
+            <button type="button" id="downloadPreviewBtn" class="button secondary small">Descargar PDF</button>
+            <button type="button" class="button secondary small" onclick="document.getElementById('previewContainer').style.display='none'">Cerrar</button>
+        </div>
+    </div>
+    <iframe id="previewIframe" style="width: 100%; height: 800px; border: 1px solid #ddd; border-radius: 4px; margin-top: 1rem;"></iframe>
+</section>
+
+</form>
+
+<div class="modal-overlay" id="modalProductos" style="display:none;">
+    <div class="modal-content-box">
+        <h3>Seleccionar Producto</h3>
+        <input type="text" id="filtroProductos" placeholder="Buscar..." onkeyup="filtrarLista()" style="width:100%; margin-bottom:10px;">
+        <ul id="listaCatalogo" style="max-height:300px; overflow-y:auto; list-style:none; padding:0;"></ul>
+        <button type="button" class="button secondary" onclick="document.getElementById('modalProductos').style.display='none'">Cerrar</button>
+    </div>
+</div>
+
+{% if qr_base64 %}
+<div class="mt-4" style="margin-top: 2rem;">
+    <label>Código QR VeriFactu:</label><br>
+    <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR AEAT" style="width: 150px; margin-top: 0.5rem;">
+</div>
+{% endif %}
+
+
+<script>
+const productos_json = document.getElementById('productos-data').dataset.json;
+const productos_data = JSON.parse(productos_json);
+
+document.addEventListener('DOMContentLoaded', function() {
+    // --- LÓGICA DE AUTOCOMPLETADO ---
+    const autocompleteBox = document.createElement('div');
+    autocompleteBox.className = 'autocomplete-list';
+    autocompleteBox.style.position = 'absolute';
+    autocompleteBox.style.zIndex = '1000';
+    document.body.appendChild(autocompleteBox);
+
+    function closeAutocomplete() {
+        autocompleteBox.style.display = 'none';
+    }
+
+    document.getElementById('lineItemsBody').addEventListener('input', function(e) {
+        if (e.target.matches('input[name^="concepto_"]')) {
+            const input = e.target;
+            const val = input.value.toLowerCase();
+            if (!val) { closeAutocomplete(); return; }
+
+            const filtered = productos_data.filter(p => p.nombre.toLowerCase().includes(val));
+            if (filtered.length === 0) { closeAutocomplete(); return; }
+
+            const rect = input.getBoundingClientRect();
+            autocompleteBox.style.left = `${rect.left + window.scrollX}px`;
+            autocompleteBox.style.top = `${rect.bottom + window.scrollY}px`;
+            autocompleteBox.style.width = `${rect.width}px`;
+            autocompleteBox.innerHTML = '';
+
+            filtered.slice(0, 5).forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.textContent = `${p.nombre} - ${parseFloat(p.precio_unitario_base).toFixed(2)}€`;
+                item.style.padding = '8px';
+                item.style.cursor = 'pointer';
+                item.style.background = 'white';
+                item.style.borderBottom = '1px solid #ccc';
+                
+                item.onmousedown = (event) => {
+                    event.preventDefault();
+                    const row = input.closest('tr');
+                    input.value = p.nombre;
+                    row.querySelector('input[name^="precio_"]').value = parseFloat(p.precio_unitario_base).toFixed(2);
+                    row.querySelector('select[name^="impuesto_"]').value = p.impuesto_defecto;
+
+                    const infoTextArea = row.nextElementSibling.querySelector('textarea[name^="informacion_"]');
+                    if (infoTextArea) {
+                        infoTextArea.value = p.descripcion_adicional || '';
+                    }
+                    
+                    closeAutocomplete();
+                    calculateTotals(); 
+                };
+                autocompleteBox.appendChild(item);
+            });
+            autocompleteBox.style.display = 'block';
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.matches('input[name^="concepto_"]')) closeAutocomplete();
+    });
+
+    document.querySelectorAll('input[name^="concepto_"]').forEach(input => {
+        input.addEventListener('blur', function() {
+            setTimeout(closeAutocomplete, 150);
+        });
+    });
+
+    const contactoSelect = document.querySelector('select[name="contacto_id"]');
+    const lineItemsBody = document.getElementById('lineItemsBody');
+    const addLineButton = document.getElementById('addLineButton');
+    const addTitleButton = document.getElementById('addTitleButton');
+    const lineasCountInput = document.getElementById('lineas_count');
+    let taxSelects = Array.from(document.querySelectorAll('select[name^="impuesto_"]'));
+    let quantityInputs = Array.from(document.querySelectorAll('input[name^="unidades_"]'));
+    let priceInputs = Array.from(document.querySelectorAll('input[name^="precio_"]'));
+    let discountInputs = Array.from(document.querySelectorAll('input[name^="descuento_"]'));
+    let lineTotalInputs = Array.from(document.querySelectorAll('.line-total'));
+    const previewButton = document.getElementById('previewButton');
+    const invoicePreview = document.getElementById('invoicePreview');
+    const previewBody = document.getElementById('previewBody');
+    const previewBase = document.getElementById('preview_base');
+    const previewIva = document.getElementById('preview_iva');
+    const previewTotal = document.getElementById('preview_total');
+    const previewTaxLabel = document.getElementById('preview_tax_label');
+    const summaryBase = document.getElementById('summary_base');
+    const summaryIva = document.getElementById('summary_iva');
+    const summaryTaxLabel = document.getElementById('summary_tax_label');
+    const summaryTotal = document.getElementById('summary_total');
+    let lineCount = parseInt(lineasCountInput.value || '5', 10);
+    
+
+    function updateLineElements() {
+        taxSelects = Array.from(document.querySelectorAll('select[name^="impuesto_"]'));
+        quantityInputs = Array.from(document.querySelectorAll('input[name^="unidades_"]'));
+        priceInputs = Array.from(document.querySelectorAll('input[name^="precio_"]'));
+        discountInputs = Array.from(document.querySelectorAll('input[name^="descuento_"]'));
+        lineTotalInputs = Array.from(document.querySelectorAll('.line-total'));
+    }
+
+    function attachAutocomplete(input) {
+        input.addEventListener('blur', function() {
+            setTimeout(closeAutocomplete, 150);
+        });
+    }
+
+    function parseNumber(value) {
+        if (!value) return 0;
+        value = String(value).replace(',', '.').trim();
+        if (/exento/i.test(value)) {
+            return 0;
+        }
+        const parsed = parseFloat(value.replace(/[^0-9.-]/g, ''));
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function parseTaxPercentage(value) {
+        if (!value) return 0;
+        if (/exento/i.test(value)) {
+            return 0;
+        }
+        const match = value.match(/([0-9]+(\.[0-9]+)?)/);
+        return match ? parseFloat(match[1]) : 0;
+    }
+
+    function getTaxLabel() {
+        const usedTypes = new Set();
+        lineTotalInputs.forEach((input) => {
+            const row = input.closest('tr');
+            const concepto = row.querySelector('input[name^="concepto_"]').value.trim();
+            if (!concepto) return;
+            const impuesto = row.querySelector('select[name^="impuesto_"]').value || '';
+            if (/IGIC/i.test(impuesto)) {
+                usedTypes.add('IGIC');
+            } else if (/IVA/i.test(impuesto)) {
+                usedTypes.add('IVA');
+            }
+        });
+        if (usedTypes.size === 0) {
+            return 'Impuesto';
+        }
+        if (usedTypes.size === 1) {
+            return usedTypes.has('IGIC') ? 'IGIC' : 'IVA';
+        }
+        return 'IVA / IGIC';
+    }
+
+    // Detectamos si la factura actual es Rectificativa usando JavaScript puro
+    const numeroFacturaInput = document.querySelector('input[name="numero_factura"]');
+    const esRectificativa = (numeroFacturaInput && numeroFacturaInput.value.includes('RECT')) || 
+                            "{{ factura.tipo_factura if factura else '' }}" === "Rectificativa";
+
+    function calculateTotals() {
+        let baseTotal = 0;
+        let ivaTotal = 0;
+        let totalGeneral = 0;
+
+        // Buscamos todos los inputs de concepto para identificar cada fila de artículo
+        const conceptoInputs = document.querySelectorAll('#lineItemsBody input[name^="concepto_"]');
+
+        conceptoInputs.forEach((conceptoInput) => {
+            const row = conceptoInput.closest('tr');
+            if (!row) return;
+
+            const concepto = conceptoInput.value.trim();
+            const unidades = parseNumber(row.querySelector('input[name^="unidades_"]').value);
+            const precio = parseNumber(row.querySelector('input[name^="precio_"]').value);
+            const descuento = parseNumber(row.querySelector('input[name^="descuento_"]').value);
+            const impuestoSelect = row.querySelector('select[name^="impuesto_"]');
+            const impuesto = impuestoSelect ? impuestoSelect.value : '';
+            const porcentaje = parseTaxPercentage(impuesto);
+            
+            // Buscamos el input del total de la línea (puede ser .line-total o el último input tipo text)
+            let totalInput = row.querySelector('.line-total') || row.querySelector('input[disabled]');
+
+            const unidadesValidas = esRectificativa ? (unidades !== 0) : (unidades > 0);
+            const precioValido = esRectificativa ? (precio !== 0) : (precio > 0);
+
+            if (!concepto || !unidadesValidas || !precioValido) {
+                if (totalInput) totalInput.value = '0.00';
+                return;
+            }
+
+            const baseLinea = unidades * precio;
+            const descuentoLinea = baseLinea * (descuento / 100);
+            
+            const baseAplicable = esRectificativa ? (baseLinea - descuentoLinea) : Math.max(0, baseLinea - descuentoLinea);
+            const ivaLinea = baseAplicable * porcentaje / 100;
+            const totalLinea = baseAplicable + ivaLinea;
+
+            if (totalInput) {
+                totalInput.value = totalLinea.toFixed(2);
+            }
+            
+            baseTotal += baseAplicable;
+            ivaTotal += ivaLinea;
+            totalGeneral += totalLinea;
+        });
+
+        // NUEVO: Obtener porcentaje de IRPF seleccionado y calcular importe retenido
+        const irpfSelect = document.getElementById('porcentaje_irpf');
+        const porcentajeIrpf = irpfSelect ? parseFloat(irpfSelect.value) : 0;
+        const irpfTotal = baseTotal * (porcentajeIrpf / 100);
+
+        // NUEVO: El IRPF se resta al total general (Base + IVA - IRPF)
+        totalGeneral = totalGeneral - irpfTotal;
+
+        summaryBase.textContent = `${baseTotal.toFixed(2)} €`;
+        summaryIva.textContent = `${ivaTotal.toFixed(2)} €`;
+        summaryTaxLabel.textContent = getTaxLabel();
+        // NUEVO: Pintar el dinero retenido
+        const summaryIrpfEl = document.getElementById('summary_irpf');
+        if (summaryIrpfEl) {
+            summaryIrpfEl.textContent = `-${irpfTotal.toFixed(2)} €`;
+        }
+
+        summaryTotal.textContent = `${totalGeneral.toFixed(2)} €`;
+
+        return { baseTotal, ivaTotal, irpfTotal, totalGeneral };
+    }
+
+    function updateTaxFilter() {
+        calculateTotals();
+    }
+
+    // Mantener la persistencia del objeto URL para poder liberarlo limpiamente
+    let currentPreviewUrl = null;
+
+    function buildPreview() {
+        // Ejecutamos directamente el flujo asíncrono para el botón sin anidar listeners globales en el document
+        async function ejecutarPrevisualizacion() {
+            const contactoSelectInterno = document.querySelector('select[name="contacto_id"]');
+            if (!contactoSelectInterno || !contactoSelectInterno.value) {
+                alert('Por favor, seleccione un cliente antes de previsualizar la factura.');
+                contactoSelectInterno.focus();
+                return;
+            }
+            
+            const form = document.querySelector('form');
+            const formData = new FormData(form);
+            
+            console.log("Iniciando previsualización de factura...");
+
+            try {
+                const response = await fetch("{{ url_for('invoices.factura_previsualizar') }}", {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    if (currentPreviewUrl) window.URL.revokeObjectURL(currentPreviewUrl);
+                    currentPreviewUrl = window.URL.createObjectURL(blob);
+                    
+                    const previewIframe = document.getElementById('previewIframe');
+                    previewIframe.src = currentPreviewUrl + '#toolbar=1&navpanes=0&scrollbar=1';
+                    document.getElementById('previewContainer').style.display = 'block';
+                    document.getElementById('previewContainer').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    const errorText = await response.text();
+                    console.error("Error de validación:", errorText);
+                    alert(errorText); 
+                }
+            } catch (error) {
+                console.error("Error en el fetch:", error);
+                alert('No se pudo conectar con el servidor para la previsualización.');
+            }
+        }
+
+        ejecutarPrevisualizacion();
+    }
+
+    function createLineRow(index, data = {}) {
+        const tr = document.createElement('tr');
+        tr.className = 'line-item-row';
+        tr.innerHTML = `
+            <td><input type="text" name="concepto_${index}" placeholder="Añadir concepto" value="${data.concepto || ''}" /></td>
+            <td><input type="number" name="unidades_${index}" step="any" value="${data.unidades || '1'}" /></td>
+            <td><input type="number" step="0.01" name="precio_${index}" value="${data.precio || '0.00'}" /></td>
+            <td>
+                <select name="impuesto_${index}">
+                    <option value=""${!data.impuesto ? ' selected' : ''} disabled hidden>Selecciona impuesto</option>
+                    <option value="0% Exento"${data.impuesto === '0% Exento' ? ' selected' : ''}>0% Exento</option>
+                    <option value="4% IVA"${data.impuesto === '4% IVA' ? ' selected' : ''}>4% IVA</option>
+                    <option value="10% IVA"${data.impuesto === '10% IVA' ? ' selected' : ''}>10% IVA</option>
+                    <option value="21% IVA"${data.impuesto === '21% IVA' ? ' selected' : ''}>21% IVA</option>
+                    <option value="3% IGIC"${data.impuesto === '3% IGIC' ? ' selected' : ''}>3% IGIC</option>
+                    <option value="7% IGIC"${data.impuesto === '7% IGIC' ? ' selected' : ''}>7% IGIC</option>
+                    <option value="9% IGIC"${data.impuesto === '9% IGIC' ? ' selected' : ''}>9% IGIC</option>
+                    <option value="13% IGIC"${data.impuesto === '13% IGIC' ? ' selected' : ''}>13% IGIC</option>
+                </select>
+            </td>
+            <td><input type="number" step="0.01" name="descuento_${index}" value="${data.descuento || '0'}" /></td>
+            <td>
+                <div class="line-total-with-action">
+                    <input type="text" disabled class="line-total" value="${data.total || '0.00'}" />
+                    <button type="button" class="button secondary xsmall delete-line-button">x</button>
+                </div>
+            </td>
+        `;
+        const infoRow = document.createElement('tr');
+        infoRow.className = 'line-detail-row';
+        infoRow.innerHTML = `
+            <td colspan="6">
+                <textarea name="informacion_${index}" class="line-detail-text" placeholder="Información adicional">${data.informacion || ''}</textarea>
+            </td>
+        `;
+        return [tr, infoRow];
+    }
+
+    function addLineRow(data = {}) {
+        lineCount += 1;
+        lineasCountInput.value = lineCount;
+        const [row, infoRow] = createLineRow(lineCount, data);
+        lineItemsBody.appendChild(row);
+        lineItemsBody.appendChild(infoRow);
+        updateLineElements();
+        attachAutocomplete(row.querySelector(`input[name="concepto_${lineCount}"]`));
+        
+        calculateTotals();
+    }
+
+    if (lineItemsBody) {
+        lineItemsBody.addEventListener('input', function(e) {
+            if (e.target.matches('input[name^="unidades_"], input[name^="precio_"], input[name^="descuento_"], select[name^="impuesto_"]')) {
+                calculateTotals();
+            }
+        });
+    }
+
+    if (addLineButton) {
+        addLineButton.addEventListener('click', function() {
+            addLineRow();
+        });
+    }
+
+    function refreshLineCount() {
+        const indices = Array.from(document.querySelectorAll('input[name^="concepto_"]'))
+            .map(input => parseInt(input.name.split('_')[1], 10))
+            .filter(Number.isFinite);
+        lineCount = indices.length ? Math.max(...indices) : 0;
+        lineasCountInput.value = lineCount;
+    }
+
+    lineItemsBody.addEventListener('click', function(event) {
+        const deleteButton = event.target.closest('.delete-line-button, .delete-title-button');
+        if (!deleteButton) return;
+        const row = deleteButton.closest('tr');
+        if (!row) return;
+
+        if (row.classList.contains('line-item-row')) {
+            const nextRow = row.nextElementSibling;
+            if (nextRow && nextRow.classList.contains('line-detail-row')) {
+                nextRow.remove();
+            }
+        }
+
+        row.remove();
+        refreshLineCount();
+        updateLineElements();
+        calculateTotals();
+    });
+
+    function createTitleRow(text = 'Título adicional') {
+        const row = document.createElement('tr');
+        row.className = 'line-title-row';
+        row.innerHTML = `
+            <td colspan="6">
+                <div class="line-title-row-inner">
+                    <input type="text" class="line-title-input" placeholder="Título de sección" value="${text}" />
+                    <button type="button" class="button secondary xsmall delete-title-button">x</button>
+                </div>
+            </td>
+        `;
+        return row;
+    }
+
+    function addTitleRow() {
+        const row = createTitleRow('Nuevo título');
+        lineItemsBody.appendChild(row);
+    }
+
+    if (addTitleButton) {
+        addTitleButton.addEventListener('click', function() {
+            addTitleRow();
+        });
+    }
+
+    if (contactoSelect) {
+        contactoSelect.addEventListener('change', updateTaxFilter);
+        updateTaxFilter();
+    }
+
+    const irpfSelectElement = document.getElementById('porcentaje_irpf');
+    if (irpfSelectElement) {
+        irpfSelectElement.addEventListener('change', calculateTotals);
+    }
+
+    if (previewButton) {
+        previewButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            buildPreview();
+        });
+    }
+
+    calculateTotals();
+
+    // --- Lógica para el botón "+" ---
+    let filaParaRellenar = null;
+
+    document.getElementById('lineItemsBody').addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-catalogo')) {
+            filaParaRellenar = e.target.closest('tr');
+            document.getElementById('modalProductos').style.display = 'block';
+            renderizarLista(productos_data);
+        }
+    });
+
+    function renderizarLista(data) {
+        const lista = document.getElementById('listaCatalogo');
+        lista.innerHTML = '';
+
+        if (data.length === 0) {
+            lista.innerHTML = '<li style="padding:10px;">No se encontraron productos</li>';
+            return;
+        }
+
+        data.forEach(p => {
+            const li = document.createElement('li');
+            li.style.padding = '10px';
+            li.style.cursor = 'pointer';
+            li.innerHTML = `<strong>${p.nombre}</strong> - ${parseFloat(p.precio_unitario_base).toFixed(2)}€`;
+
+            li.onclick = () => {
+                if (filaParaRellenar) {
+                    filaParaRellenar.querySelector('input[name^="concepto_"]').value = p.nombre;
+                    filaParaRellenar.querySelector('input[name^="precio_"]').value = parseFloat(p.precio_unitario_base).toFixed(2);
+                    filaParaRellenar.querySelector('select[name^="impuesto_"]').value = p.impuesto_defecto;
+
+                    const infoTextArea = filaParaRellenar.nextElementSibling.querySelector('textarea[name^="informacion_"]');
+                    if (infoTextArea) {
+                        infoTextArea.value = p.descripcion_adicional || '';
+                    }
+                    
+                    calculateTotals();
+                    document.getElementById('modalProductos').style.display = 'none';
+                }
+            };
+            lista.appendChild(li);
+        });
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            const target = event.target;
+            if (target.tagName === 'INPUT' && target.type === 'text' || target.type === 'number') {
+                event.preventDefault();
+                return false;
+            }
+        }
+    });
+    
+});
+
+function abrirPopupContacto() {
+    const url = "{{ url_for('contacts.contacto_nuevo') }}?popup=1";
+    window.open(url, "NuevoContactoPopup", "width=850,height=750,scrollbars=yes,resizable=yes,toolbar=no,location=no,status=no,menubar=no");
+}
+
+document.querySelector('form').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        
+        const focusableElements = Array.from(
+            this.querySelectorAll('input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button[type="submit"]')
+        );
+        
+        const index = focusableElements.indexOf(e.target);
+        
+        if (index > -1 && index + 1 < focusableElements.length) {
+            focusableElements[index + 1].focus();
+            
+            if (focusableElements[index + 1].tagName === 'INPUT' && ['text', 'number'].includes(focusableElements[index + 1].type)) {
+                focusableElements[index + 1].select();
+            }
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const botonActivo = document.activeElement;
+            
+            if (botonActivo && botonActivo.type === 'submit' && botonActivo.name !== 'guardar_borrador') {
+                const mensaje = "ADVERTENCIA DE EMISIÓN DEFINITIVA \n\n" +
+                                "Usted va a proceder a emitir la factura formalmente:\n\n" +
+                                "1. Se le asignará un número de serie oficial e inmutable.\n\n" +
+                                "2. Según la normativa Veri*Factu, una vez emitida NO se podrá modificar tras ser enviada.\n\n" +
+                                "3. Cualquier corrección posterior requerirá una factura rectificativa o de anulación.\n\n" +
+                                "¿Está completamente seguro de que desea emitir esta factura?";
+                
+                if (!confirm(mensaje)) {
+                    e.preventDefault();
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

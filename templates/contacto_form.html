@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header space-between">
+    <div>
+        <a href="{{ url_for('contacts.contactos') }}" class="button primary">← Volver</a>
+        <h1>{{ 'Editar contacto' if contact else 'Crear contacto' }}</h1>
+    </div>
+    <div class="form-actions right-align">
+        <button type="submit" form="contactoForm" class="button primary">Guardar contacto</button>
+    </div>
+</div>
+
+<form method="post" id="contactoForm">
+<section class="panel grid-2">
+    <div>
+        <h2>Información de contacto</h2>
+        
+        <div class="flex-grow">
+            <label>Nº de documento*</label>
+            <input type="text" id="numero_documento" name="numero_documento" required placeholder="Nº de documento" value="{{ contact.numero_documento if contact else '' }}" />
+        </div>
+        
+        <label for="nombre_fiscal">Nombre Fiscal</label>
+<input type="text" id="nombre_fiscal" name="nombre_fiscal" class="form-control" autocomplete="off" 
+       value="{{ contact.nombre_fiscal if contact else '' }}">
+        <ul id="sugerencias-nombre" class="list-group position-absolute w-100 d-none" style="z-index: 1000; max-height: 200px; overflow-y: auto;"></ul>
+        <div class="inline-row gap-medium">
+            
+        </div>
+        <label>Tipo de contacto</label>
+        <div class="radio-group">
+            <label><input type="radio" name="tipo_contacto" value="Cliente"{% if not contact or contact.tipo_contacto == 'Cliente' %} checked{% endif %} /> Cliente</label>
+            <label><input type="radio" name="tipo_contacto" value="Proveedor"{% if contact and contact.tipo_contacto == 'Proveedor' %} checked{% endif %} /> Proveedor</label>
+            <label><input type="radio" name="tipo_contacto" value="Ambas"{% if contact and contact.tipo_contacto == 'Ambas' %} checked{% endif %} /> Ambas</label>
+        </div>
+        <div class="inline-row gap-medium">
+            <div class="flex-grow">
+                <label>Email</label>
+                <input type="email" name="email_principal" placeholder="Email al que enviaremos facturas" value="{{ contact.email_principal if contact else '' }}" />
+            </div>
+            <div class="flex-grow">
+                <label>Teléfono</label>
+                <input type="text" name="telefono" placeholder="Teléfono" value="{{ contact.telefono if contact else '' }}" />
+            </div>
+        </div>
+        <label>Emails adicionales</label>
+        <input type="text" name="emails_adicionales" placeholder="Emails en copia separadas por comas" value="{{ contact.emails_adicionales if contact else '' }}" />
+        <h2>Dirección de facturación</h2>
+        <label>Dirección fiscal</label>
+        <input type="text" name="direccion_fiscal" placeholder="Añade la dirección del contacto" value="{{ contact.direccion_fiscal if contact else '' }}" />
+        <div class="inline-row gap-medium">
+            <div class="flex-grow"><label>Código postal</label><input type="text" id="codigo_postal" name="codigo_postal" value="{{ contact.codigo_postal if contact else '' }}" /></div>
+            
+
+                <div class="flex-grow">
+                    <label>Ciudad</label>
+                    <select id="ciudad" name="ciudad" class="form-control">
+                        {% if contact and contact.ciudad %}
+                            <option value="{{ contact.ciudad }}" selected>{{ contact.ciudad }}</option>
+                        {% else %}
+                            <option value="">Selecciona un código postal primero...</option>
+                        {% endif %}
+                    </select>
+                </div>
+        </div>
+        <div class="inline-row gap-medium">
+            <div class="flex-grow"><label>Provincia</label><input type="text" id="provincia" name="provincia" value="{{ contact.provincia if contact else '' }}" /></div>
+            <div class="flex-grow"><label>País</label><input type="text" name="pais" value="{{ contact.pais if contact else 'España' }}" /></div>
+        </div>
+        <h2>Condiciones de facturación</h2>
+        
+        <label>Impuestos a facturar</label>
+        <select name="impuesto_defecto">
+            <option{% if contact and contact.impuesto_defecto == '0% Exento' %} selected{% endif %}>0% Exento</option>
+            <option{% if not contact or contact.impuesto_defecto == '21% IVA' %} selected{% endif %}>21% IVA</option>
+            <option{% if contact and contact.impuesto_defecto == '4% IVA' %} selected{% endif %}>4% IVA</option>
+            <option{% if contact and contact.impuesto_defecto == '10% IVA' %} selected{% endif %}>10% IVA</option>
+            <option{% if contact and contact.impuesto_defecto == '3% IGIC' %} selected{% endif %}>3% IGIC</option>
+            <option{% if contact and contact.impuesto_defecto == '7% IGIC' %} selected{% endif %}>7% IGIC</option>
+            <option{% if contact and contact.impuesto_defecto == '9% IGIC' %} selected{% endif %}>9% IGIC</option>
+            <option{% if contact and contact.impuesto_defecto == '13% IGIC' %} selected{% endif %}>13% IGIC</option>
+        </select>
+        <label class="checkbox-label" style="display: none;"><input type="checkbox" name="recargo_equivalencia"{% if contact and contact.recargo_equivalencia %} checked{% endif %} /> Recargo de equivalencia</label>
+        <h2>Información adicional</h2>
+        <label>Notas</label>
+        <textarea name="notas" rows="5" placeholder="Añade comentarios o anotaciones sobre el contacto">{{ contact.notas if contact else '' }}</textarea>
+    </div>
+    <aside class="panel-info">
+        <h3>Campos adicionales</h3>
+        <ul class="info-list">
+            <li><strong>Tipo de contacto:</strong> Filtra y agrupa el contacto rápidamente.</li>
+            <li><strong>Impuesto:</strong> Se aplicará por defecto en las facturas.</li>
+            <li><strong>Recargo de equivalencia:</strong> Activa esta opción si aplica para este cliente.</li>
+        </ul>
+    </aside>
+</section>
+<div class="form-actions right-align">
+    <a href="{{ url_for('contacts.contactos') }}" class="button secondary">Cancelar</a>
+    <button type="submit" class="button primary">Guardar contacto</button>
+</div>
+</form>
+
+{% if request.args.get('popup') == '1' %}
+<style>
+    /* Oculta tu barra de navegación superior o lateral si la tienes */
+    nav, .topbar, .sidebar, .main-sidebar { 
+        display: none !important; 
+    }
+    /* Si tu contenedor principal tiene márgenes para el menú, los quitamos */
+    .content-wrapper, main, body {
+        padding-top: 10px !important;
+        margin-left: 0 !important;
+    }
+</style>
+{% endif %}
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inputDocumento = document.getElementById('numero_documento');
+    const inputNombre = document.getElementById('nombre_fiscal');
+    const inputProvincia = document.getElementById('provincia');
+    
+
+    if (inputDocumento) {
+        const labelDocumento = inputDocumento.previousElementSibling;
+        let animationInterval = null; 
+
+        inputDocumento.addEventListener('blur', function() {
+            const cif = this.value.trim();
+            
+            if (cif.length < 5 || /^[XYZ]?\d/.test(cif)) {
+                return; 
+            }
+
+            let statusIndicator = document.getElementById('cif-loading-status');
+            if (!statusIndicator && labelDocumento) {
+                statusIndicator = document.createElement('span');
+                statusIndicator.id = 'cif-loading-status';
+                statusIndicator.style.fontSize = '0.85em';
+                statusIndicator.style.marginLeft = '10px';
+                statusIndicator.style.color = 'var(--primary-color, #3b82f6)'; 
+                statusIndicator.style.fontWeight = 'normal';
+                labelDocumento.appendChild(statusIndicator);
+            }
+            
+            // Limpieza de seguridad antes de iniciar la animación
+            if (animationInterval) {
+                clearInterval(animationInterval);
+            }
+
+            // ANIMACIÓN ROBUSTA: Ciclamas sobre un array de estados
+            const estados = ['Buscando', 'Buscando.', 'Buscando..', 'Buscando...'];
+            let paso = 0;
+            
+            statusIndicator.innerText = estados[paso];
+            statusIndicator.style.color = 'var(--primary-color, #3b82f6)';
+
+            animationInterval = setInterval(function() {
+                paso = (paso + 1) % estados.length;
+                statusIndicator.innerText = estados[paso];
+            }, 400); 
+
+            inputDocumento.style.opacity = '0.6';
+
+            fetch(`/contactos/autocompletar?cif=${encodeURIComponent(cif)}`)
+                .then(response => response.json())
+                .then(data => {
+                    clearInterval(animationInterval);
+                    inputDocumento.style.opacity = '1';
+                    
+                    if (data.success) {
+                        if (!inputNombre.value) inputNombre.value = data.razon_social;
+                        if (!inputProvincia.value) inputProvincia.value = data.provincia;
+                        
+                        if (statusIndicator) {
+                            statusIndicator.style.color = '#10b981'; 
+                            statusIndicator.innerText = '✅ Localizada';
+                            setTimeout(() => { statusIndicator.innerText = ''; }, 2000);
+                        }
+                    } else {
+                        if (statusIndicator) {
+                            statusIndicator.style.color = 'red'; // O '#dc3545'
+                            statusIndicator.innerText = 'No encontrada';
+                            
+                            setTimeout(() => { 
+                                statusIndicator.innerText = ''; 
+                            }, 2000);
+                        }
+                    }
+                })
+                .catch(error => {
+                    clearInterval(animationInterval);
+                    inputDocumento.style.opacity = '1';
+                    if (statusIndicator) statusIndicator.innerText = '';
+                    console.error('Error al consultar el BORME:', error);
+                });
+        });
+    }
+});
+
+// Busqueda de ciudad y provincia por cp
+    const PROVINCIAS_ESPANA = {
+        "01": "Álava", "02": "Albacete", "03": "Alicante", "04": "Almería", "05": "Ávila",
+        "06": "Badajoz", "07": "Baleares", "08": "Barcelona", "09": "Burgos", "10": "Cáceres",
+        "11": "Cádiz", "12": "Castellón", "13": "Ciudad Real", "14": "Córdoba", "15": "A Coruña",
+        "16": "Cuenca", "17": "Girona", "18": "Granada", "19": "Guadalajara", "20": "Gipuzkoa",
+        "21": "Huelva", "22": "Huesca", "23": "Jaén", "24": "León", "25": "Lleida",
+        "26": "La Rioja", "27": "Lugo", "28": "Madrid", "29": "Málaga", "30": "Murcia",
+        "31": "Navarra", "32": "Ourense", "33": "Asturias", "34": "Palencia", "35": "Las Palmas",
+        "36": "Pontevedra", "37": "Salamanca", "38": "S.C. Tenerife", "39": "Cantabria",
+        "40": "Segovia", "41": "Sevilla", "42": "Soria", "43": "Tarragona", "44": "Teruel",
+        "45": "Toledo", "46": "Valencia", "47": "Valladolid", "48": "Bizkaia", "49": "Zamora",
+        "50": "Zaragoza", "51": "Ceuta", "52": "Melilla"
+    };
+
+    const inputCP = document.getElementById('codigo_postal');
+    const selectCiudad = document.getElementById('ciudad');
+    const inputProv = document.getElementById('provincia');
+
+    if (inputCP) {
+        inputCP.addEventListener('input', function() {
+            const cp = this.value.trim();
+            
+            // Si el CP no tiene 5 dígitos, vaciamos select y salimos
+            if (cp.length !== 5) {
+                selectCiudad.innerHTML = '<option value="">Selecciona un código postal primero...</option>';
+                return;
+            }
+
+            // A. Provincia
+            const provCode = cp.substring(0, 2);
+            if (PROVINCIAS_ESPANA[provCode]) inputProv.value = PROVINCIAS_ESPANA[provCode];
+
+            // B. Ciudad (Fetch)
+            fetch(`https://api.zippopotam.us/es/${cp}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Error en API');
+                    return res.json();
+                })
+                .then(data => {
+                    selectCiudad.innerHTML = ''; // Limpiamos opciones
+                    if (data.places && data.places.length > 0) {
+                        data.places.forEach(p => {
+                            let option = document.createElement('option');
+                            option.value = p['place name'];
+                            option.textContent = p['place name'];
+                            selectCiudad.appendChild(option);
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error("No se pudo obtener la lista de ciudades", err);
+                });
+        });
+    }
+
+
+// --- NAVEGACIÓN ENTRE CASILLAS CON ENTER ---
+document.querySelector('form').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        // Permitimos el Enter nativo en los textarea o si el usuario está expresamente sobre el botón de envío
+        if (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'BUTTON' && e.target.type === 'submit')) {
+            return;
+        }
+
+        // Cancelamos el envío automático del formulario
+        e.preventDefault();
+
+        // Filtramos todos los elementos del formulario que sean editables, visibles y no estén deshabilitados
+        const formElements = Array.from(this.elements).filter(el => {
+            return (
+                el.tagName === 'INPUT' || 
+                el.tagName === 'SELECT' || 
+                el.tagName === 'TEXTAREA' || 
+                (el.tagName === 'BUTTON' && el.type !== 'button')
+            ) && !el.readOnly && !el.disabled && el.type !== 'hidden' && el.style.display !== 'none';
+        });
+
+        const currentIndex = formElements.indexOf(e.target);
+
+        // Si hay un siguiente elemento disponible en el flujo, movemos el foco
+        if (currentIndex > -1 && currentIndex + 1 < formElements.length) {
+            formElements[currentIndex + 1].focus();
+            
+            // Si es un campo de texto, seleccionamos el contenido para agilizar la sobrescritura
+            if (formElements[currentIndex + 1].tagName === 'INPUT' && typeof formElements[currentIndex + 1].select === 'function') {
+                formElements[currentIndex + 1].select();
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,510 @@
+
+
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header space-between">
+    <div>
+        <h1>Facturas emitidas</h1>
+        <p>Visualiza y gestiona tus facturas rápidamente</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('invoices.factura_crear') }}" class="button primary">Crear factura</a>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="tab-container-responsive">
+        <div class="tab-row">
+            <a href="{{ url_for('invoices.facturas', pestana='Emitida') }}" class="tab{% if pestana == 'Emitida' %} active{% endif %}">Emitidas</a>
+            <a href="{{ url_for('invoices.facturas', pestana='Rectificativa') }}" class="tab{% if pestana == 'Rectificativa' %} active{% endif %}">Rectificativas</a>
+            <a href="{{ url_for('invoices.facturas', pestana='Verifactu') }}" class="tab{% if pestana == 'Verifactu' %} active{% endif %}">Verifactu</a>
+            <a href="{{ url_for('invoices.facturas', pestana='Borrador') }}" class="tab{% if pestana == 'Borrador' %} active{% endif %}">Borradores</a>
+            
+        </div>
+
+        <div class="panel-actions">
+            <form method="get" class="search-row">
+                <input type="text" name="q" placeholder="Nombre, número de factura" value="{{ search }}" />
+            </form>
+        </div>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"></th>
+                    <th class="sortable" style="cursor:pointer;">
+                        <div class="th-content"><span>FACTURA</span><i class="bi bi-arrow-down-up"></i></div>
+                    </th>
+                    <th class="sortable" style="cursor:pointer;">
+                        <div class="th-content"><span>CLIENTE</span><i class="bi bi-arrow-down-up"></i></div>
+                    </th>
+                    <th class="sortable" style="cursor:pointer;">
+                        <div class="th-content"><span>VERIFACTU</span><i class="bi bi-arrow-down-up"></i></div>
+                    </th>
+                    <th class="sortable" style="cursor:pointer;">
+                        <div class="th-content"><span>FECHA</span><i class="bi bi-arrow-down-up"></i></div>
+                    </th>
+                    <th class="sortable" style="cursor:pointer;">
+                        <div class="th-content"><span>VENCIMIENTO</span><i class="bi bi-arrow-down-up"></i></div>
+                    </th>
+                    <th class="sortable" style="cursor:pointer;">
+                        <div class="th-content"><span>TOTAL</span><i class="bi bi-arrow-down-up"></i></div>
+                    </th>
+                    <th class="sortable" style="cursor:pointer;">
+                        <div class="th-content"><span>ESTADO</span><i class="bi bi-arrow-down-up"></i></div>
+                    </th>
+                    <th>ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for factura in facturas %}
+                    <tr data-invoice-id="{{ factura.id }}" 
+                        data-invoice-numero="{{ factura.numero_factura }}"
+                        data-estado-ui="{{ factura.estado_ui }}"
+                        data-tipo-factura="{{ factura.tipo_factura }}"
+                        data-verifactu-estado="{{ factura.verifactu_registro.estado_envio if factura.verifactu_registro else 'No_Enviado' }}">
+
+                        <td data-label="SELECCIONAR"><input type="checkbox" value="{{ factura.id }}" /></td>
+                        <td data-label="FACTURA">{{ factura.numero_factura }}</td>
+                        <td data-label="CLIENTE">{{ factura.contacto.nombre_fiscal }}</td>
+                        
+                        <td data-label="VERIFACTU">
+                            {% if factura.verifactu_registro %}
+                                {% if factura.verifactu_registro.estado_envio == 'Enviado_Aceptado' %}
+                                    <span class="badge bg-success">Enviada&nbsp;<i class="bi bi-check-circle-fill"></i></span>
+                                {% elif factura.verifactu_registro.estado_envio == 'Rechazado' %}
+                                    <span class="badge bg-danger" title="{{ factura.verifactu_registro.error_glosa }}">Rechazada&nbsp;<i class="bi bi-exclamation-triangle-fill"></i></span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Pendiente <i class="bi bi-hourglass-split"></i></span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">No Enviada</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="FECHA">{{ factura.fecha_factura.strftime('%d/%m/%Y') }}</td>
+                        <td data-label="VENCIMIENTO">{{ factura.fecha_vencimiento.strftime('%d/%m/%Y') if factura.fecha_vencimiento else '-' }}</td>
+                        <td data-label="TOTAL"><strong>{{ '{:,.2f}'.format(factura.total_factura) }} €</strong></td>
+                        <td data-label="ESTADO"><span class="badge badge-{{ 'success' if factura.estado_contable == 'Cobrada' else 'info' if factura.estado_contable == 'Emitida' else 'warning' }}">{{ factura.estado_contable }}</span></td>
+                        <td data-label="ACCIONES"><a href="{{ url_for('invoices.factura_editar', factura_id=factura.id) }}" class="button secondary small">Editar</a></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="9" class="no-data">No hay facturas en esta vista.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="invoiceSelectionFooter" class="selection-footer" style="
+        display: none; 
+        position: fixed; 
+        bottom: 20px; 
+        left: 10px;        /* Cambiamos 50% por un margen pequeño */
+        right: 10px;       /* Ajuste automático a los lados */
+        z-index: 900; 
+        background: var(--surface); 
+        padding: 10px; 
+        border-radius: 12px; /* Cambiado a 12px para que no sea tan redondeado en móvil */
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        border: 1px solid var(--border);
+        max-width: 850px;  /* Limitamos el tamaño máximo para que no sea gigante */
+        margin: 0 auto;    /* Centrado si hay espacio */
+        overflow-x: auto;  /* Permite scroll horizontal si los botones no caben */
+        white-space: nowrap; /* Evita que los botones salten de línea */
+    ">
+        <div class="selection-actions" style="display: flex; gap: 5px; justify-content: center;">
+            <button id="copyInvoice" class="button secondary small">Duplicar</button>
+            <button id="editInvoice" class="button secondary small">Editar</button>
+            <button id="sendVerifactu" class="button secondary small btn-footer-warning">Enviar Verifactu</button>
+            <button id="rectificarInvoice" class="button secondary small btn-footer-danger" style="display: none;">Abonar / Rectificar</button>
+            <button id="downloadPdf" class="button secondary small">Descargar PDF</button>
+            <button id="deleteInvoice" class="button danger small">Eliminar</button>
+        </div>
+    </div>
+</section>
+
+<div id="verifactuModal" class="modal-overlay" style="display:none; justify-content:center; align-items:center;">
+    <div class="modal-content-box" style="min-width:320px;">
+        <h3>Firmar y enviar a la AEAT</h3>
+        <p class="modal-subtitle">Introduce la contraseña del certificado digital</p>
+        <input type="password" id="certPasswordInput" class="modal-input" placeholder="Contraseña del certificado" />
+        <div style="display:flex; gap:.5rem; justify-content:flex-end; margin-top:1rem;">
+            <button id="verifactuCancel" class="button secondary small">Cancelar</button>
+            <button id="verifactuConfirm" class="button primary small">Enviar</button>
+        </div>
+    </div>
+</div>
+
+<div id="rectificarModal" class="modal-overlay" style="display:none; justify-content:center; align-items:center;">
+    <div class="modal-content-box" style="min-width:400px; max-width:500px;">
+        <h3 class="title-rectificar"><i class="bi bi-exclamation-triangle-fill"></i> Crear Factura Rectificativa</h3>
+        <p class="modal-subtitle">Vas a generar un abono total con importes invertidos para la factura: <strong id="rectificarNumFactura" style="color: var(--text);"></strong></p>
+        
+        <label for="motivo_rectificacion" style="display:block; font-weight:bold; font-size:0.85rem; margin-bottom:0.5rem;">Motivo de rectificación (Exigido por la AEAT):</label>
+        <select id="motivo_rectificacion" class="modal-select">
+            <option value="Error material / Subsanación de datos de identificación">Error material / Subsanación de datos</option>
+            <option value="Error fundado en derecho / Modificación de base imponible">Error fundado en derecho / Modificación de bases</option>
+            <option value="Devolución de mercancía / Resolución de operaciones">Devolución de mercancía / Resolución de operaciones</option>
+            <option value="Aplicación de descuento o bonificación posterior">Aplicación de descuento o bonificación posterior</option>
+        </select>
+
+        <div style="display:flex; gap:.5rem; justify-content:flex-end;">
+            <button id="rectificarCancel" class="button secondary small">Cancelar</button>
+            <button id="rectificarConfirm" class="button primary small btn-action-rectificar">Generar Abono</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function() {
+        const invoiceTable = $('.data-table');
+        const footer = $('#invoiceSelectionFooter');
+        const selectedCount = $('#selectedCount');
+
+        function updateFooter() {
+            // Buscamos los checkboxes que estén marcados actualmente
+            const checkedBoxes = invoiceTable.find('tbody input[type="checkbox"]:checked');
+            const count = checkedBoxes.length;
+
+            if (count > 0) {
+                selectedCount.text(count + ' ' + (count === 1 ? 'elemento seleccionado' : 'elementos seleccionados'));
+
+                // --- LÓGICA DE CONTROL PARA UNA SOLA FACTURA SELECCIONADA ---
+                if (count === 1) {
+                    const row = checkedBoxes.first().closest('tr');
+                    
+                    // Leemos tanto el estado de la UI como tu tipo de factura original
+                    const estadoUi = String(row.attr('data-estado-ui') || '').toLowerCase().trim(); // 'borrador' o 'emitida'
+                    const tFactura = String(row.attr('data-tipo-factura') || '').toLowerCase().trim(); // Tu lógica original ('ordinaria')
+                    const verifactuEstado = String(row.attr('data-verifactu-estado') || '').trim();
+
+                    // 1. CONDICIÓN INICIAL: Si es un Borrador, ocultamos las acciones críticas de inmediato
+                    if (estadoUi === 'borrador') {
+                        $('#sendVerifactu').hide();
+                        $('#rectificarInvoice').hide();
+                    } else {
+                        // 2. SI NO ES BORRADOR (Es factura en firme / emitida):
+                        
+                        // Control para Enviar Verifactu (Se muestra si no está aceptada todavía)
+                        if (verifactuEstado === 'Enviado_Aceptado') {
+                            $('#sendVerifactu').hide();
+                        } else {
+                            $('#sendVerifactu').show();
+                        }
+
+                        // Control para Abonar / Rectificar: se muestra siempre que esté EMITIDA
+                        // (estadoUi !== 'borrador') y excluimos que se intente rectificar otra rectificativa si aplica.
+                        if (tFactura === 'ordinaria') {
+                            $('#rectificarInvoice').show();
+                        } else {
+                            $('#rectificarInvoice').hide();
+                        }
+                    }
+                } else {
+                    // Multiselección: ocultamos botones por seguridad
+                    $('#sendVerifactu').hide();
+                    $('#rectificarInvoice').hide();
+                }
+
+                footer.show();
+            } else {
+                footer.hide();
+                $('#sendVerifactu').hide();
+                $('#rectificarInvoice').hide(); // Limpieza por seguridad si no hay nada marcado
+            }
+        }
+
+        // Al cambiar el estado de un checkbox
+        invoiceTable.on('change', 'tbody input[type="checkbox"]', function() {
+            const checkbox = $(this);
+            const row = checkbox.closest('tr');
+
+            if (checkbox.prop('checked')) {
+                // Desmarcar todos los DEMÁS checkboxes y quitarles la clase de selección
+                invoiceTable.find('tbody input[type="checkbox"]').not(checkbox).prop('checked', false);
+                invoiceTable.find('tbody tr').not(row).removeClass('row-selected');
+                
+                row.addClass('row-selected');
+            } else {
+                row.removeClass('row-selected');
+            }
+            
+            updateFooter();
+        });
+
+        // Al hacer clic en cualquier parte de la fila
+        invoiceTable.on('click', 'tbody tr', function(event) {
+            // Evitamos disparar el evento si se hace clic directamente en un link, botón o el propio checkbox
+            if (event.target.type !== 'checkbox' && event.target.tagName !== 'A' && event.target.tagName !== 'BUTTON') {
+                const checkbox = $(this).find('input[type="checkbox"]');
+                const isChecked = checkbox.prop('checked');
+                
+                // Si ya estaba marcado, lo desmarcamos. Si no, lo marcamos (el evento 'change' se encargará de limpiar el resto)
+                checkbox.prop('checked', !isChecked).trigger('change');
+            }
+        });
+
+        function getSelectedInvoiceId() {
+            const checked = invoiceTable.find('tbody input[type="checkbox"]:checked');
+            if (checked.length !== 1) {
+                return null;
+            }
+            return checked.val();
+        }
+
+        // --- LÓGICA JS DE LA FACTURA RECTIFICATIVA ---
+        let _rectificarInvoiceId = null;
+
+        $('#rectificarInvoice').on('click', function() {
+            const invoiceId = getSelectedInvoiceId();
+            if (!invoiceId) return;
+
+            const row = invoiceTable.find(`tr[data-invoice-id="${invoiceId}"]`);
+            const numFactura = row.attr('data-invoice-numero'); // Cambiado a .attr() por seguridad
+
+            _rectificarInvoiceId = invoiceId;
+            $('#rectificarNumFactura').text(numFactura);
+            $('#rectificarModal').css('display', 'flex');
+        });
+
+        $('#rectificarCancel').on('click', function() {
+            $('#rectificarModal').hide();
+            _rectificarInvoiceId = null;
+        });
+
+        $('#rectificarConfirm').on('click', function() {
+            const motivoSel = $('#motivo_rectificacion').val();
+            if (!_rectificarInvoiceId) return;
+
+            $('#rectificarModal').hide();
+
+            $.ajax({
+                // Usamos /facturas/ que es como tu navegador resuelve las rutas de edición
+                url: `/facturas/${_rectificarInvoiceId}/rectificar`, 
+                type: 'POST',
+                data: { motivo_rectificacion: motivoSel }, 
+                success: function(response) {
+                    // Verificamos 'success' tal y como lo manda el backend
+                    if (response.success) {
+                        // Construimos la redirección usando 'new_id' que viene de tu Python
+                        window.location.href = `/facturas/${response.new_id}/editar`;
+                    } else {
+                        alert('Error: ' + (response.error || 'Error desconocido'));
+                    }
+                },
+                error: function(xhr) {
+                    // Si el servidor responde con 400 o 500, extraemos el mensaje exacto de tu backend
+                    const msg = xhr.responseJSON ? (xhr.responseJSON.error || xhr.responseJSON.message) : 'Error en el servidor';
+                    alert('Error al generar la rectificativa: ' + msg);
+                }
+            });
+            _rectificarInvoiceId = null;
+        });
+
+        $('#editInvoice').on('click', function() {
+            const invoiceId = getSelectedInvoiceId();
+            if (!invoiceId) {
+                alert('Selecciona una sola factura para editar.');
+                return;
+            }
+            window.location.href = `/facturas/${invoiceId}/editar`;
+        });
+
+        let _verifactuInvoiceId = null;
+
+        $('#sendVerifactu').on('click', function() {
+            const invoiceId = getSelectedInvoiceId();
+            if (!invoiceId) {
+                alert('Selecciona una sola factura para enviar.');
+                return;
+            }
+            _verifactuInvoiceId = invoiceId;
+            $('#certPasswordInput').val('');
+            $('#verifactuModal').css('display', 'flex');
+            $('#certPasswordInput').focus();
+        });
+
+        $('#verifactuCancel').on('click', function() {
+            $('#verifactuModal').hide();
+            _verifactuInvoiceId = null;
+        });
+
+        $('#verifactuConfirm').on('click', function() {
+            const password = $('#certPasswordInput').val();
+            if (!password) return;
+
+            $('#verifactuModal').hide();
+            $.post(`/facturas/${_verifactuInvoiceId}/enviar_verifactu`, { cert_password: password })
+                .done(function(response) {
+                    alert(response.message);
+                    location.reload();
+                })
+                .fail(function(xhr) {
+                    alert('Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Error en el servidor'));
+                });
+            _verifactuInvoiceId = null;
+        });
+
+        // Permitir confirmar con Enter
+        $('#certPasswordInput').on('keydown', function(e) {
+            if (e.key === 'Enter') $('#verifactuConfirm').trigger('click');
+            if (e.key === 'Escape') $('#verifactuCancel').trigger('click');
+        });
+
+        $('#copyInvoice').on('click', function() {
+            const invoiceId = getSelectedInvoiceId();
+            if (!invoiceId) {
+                alert('Selecciona una sola factura para copiar.');
+                return;
+            }
+            $.post(`/facturas/${invoiceId}/duplicar`).done(function(response) {
+                window.location.href = `/facturas/${response.new_id}/editar`;
+            }).fail(function() {
+                alert('Error al duplicar la factura.');
+            });
+        });
+
+        $('#addPayment').on('click', function() {
+            const invoiceId = getSelectedInvoiceId();
+            if (!invoiceId) {
+                alert('Selecciona una sola factura para marcar como cobrada.');
+                return;
+            }
+            $.post(`/facturas/${invoiceId}/cobrar`).done(function() {
+                location.reload();
+            }).fail(function() {
+                alert('Error al marcar la factura como cobrada.');
+            });
+        });
+
+        $('#downloadPdf').on('click', function() {
+            const invoiceId = getSelectedInvoiceId();
+            if (!invoiceId) {
+                alert('Selecciona una sola factura para descargar.');
+                return;
+            }
+            window.location.href = `/facturas/${invoiceId}/descargar`;
+        });
+
+        $('#deleteInvoice').on('click', function() {
+            const invoiceId = getSelectedInvoiceId();
+            if (!invoiceId) {
+                alert('Selecciona una sola factura para eliminar.');
+                return;
+            }
+            if (!confirm('¿Estás seguro de que deseas eliminar esta factura?')) {
+                return;
+            }
+            $.post(`/facturas/${invoiceId}/eliminar`).done(function() {
+                location.reload();
+            }).fail(function() {
+                alert('Error al eliminar la factura.');
+            });
+        });
+
+        // --- SISTEMA DE ORDENACIÓN DE TABLA ---
+        invoiceTable.on('click', 'th.sortable', function() {
+            const th = $(this);
+            const index = th.index();
+            const tbody = invoiceTable.find('tbody');
+            const rows = tbody.find('tr').not(':has(td[colspan])').get(); // Excluir fila de "No hay facturas"
+            
+            // Determinar dirección (ascendente / descendente)
+            let asciiClass = 'asc';
+            if (th.hasClass('asc')) {
+                asciiClass = 'desc';
+                th.removeClass('asc').addClass('desc');
+            } else {
+                th.removeClass('desc').addClass('asc');
+            }
+            
+            // Quitar clases de ordenación a las demás cabeceras
+            invoiceTable.find('th.sortable').not(th).removeClass('asc desc');
+
+            // Función para limpiar y parsear valores numéricos o fechas
+            function getCellValue(row, idx) {
+                let text = $(row).children('td').eq(idx).text().trim();
+                
+                // [ÍNDICE 6]: Columna de TOTAL (Formato: 1,044.00 €)
+                if (idx === 6) { 
+                    // 1. Eliminamos el símbolo de € y cualquier espacio
+                    // 2. Quitamos las comas (separador de miles): '1,044.00' -> '1044.00'
+                    let cleanText = text.replace(/[^0-9.-]/g, '').replace(/,/g, '');
+                    return parseFloat(cleanText) || 0;
+                }
+                
+                // [ÍNDICES 4 y 5]: Columnas de FECHA y VENCIMIENTO. Convertimos DD/MM/YYYY a YYYYMMDD
+                if (idx === 4 || idx === 5) {
+                    if (text === '-' || !text) return '';
+                    const parts = text.split('/');
+                    if (parts.length === 3) {
+                        return parts[2] + parts[1] + parts[0]; // Retorna YYYYMMDD para ordenar alfabéticamente/numéricamente
+                    }
+                    return text;
+                }
+                
+                return text.toLowerCase();
+            }
+
+            // Ordenar las filas
+            rows.sort(function(a, b) {
+                const valA = getCellValue(a, index);
+                const valB = getCellValue(b, index);
+                
+                if (valA === valB) return 0;
+                
+                if (asciiClass === 'asc') {
+                    return valA > valB ? 1 : -1;
+                } else {
+                    return valA < valB ? 1 : -1;
+                }
+            });
+
+            // Volver a estampar las filas ordenadas en el DOM
+            $.each(rows, function(index, row) {
+                tbody.append(row);
+            });
+        });
+
+        // --- BUSCADOR EN TIEMPO REAL (AJAX ULTRA-FLUIDO) ---
+        let searchTimeout = null;
+        const searchInput = $('.search-row input[name="q"]');
+
+        searchInput.on('input', function() {
+            const query = $(this).val();
+            // Mantener el estado de la pestaña actual en la búsqueda
+            const urlParams = new URLSearchParams(window.location.search);
+            const pestana = urlParams.get('pestana') || 'Emitida';
+
+            clearTimeout(searchTimeout);
+
+            searchTimeout = setTimeout(function() {
+                // Modificamos la URL del navegador estéticamente para que refleje la búsqueda
+                const newUrl = `${window.location.pathname}?pestana=${pestana}&q=${encodeURIComponent(query)}`;
+                window.history.pushState({ path: newUrl }, '', newUrl);
+
+                // Lanzamos la petición en segundo plano
+                $.get(newUrl, function(data) {
+                    // Buscamos el nuevo tbody generado por el servidor y reemplazamos el antiguo
+                    const newTbody = $(data).find('.data-table lightbox, tbody').html();
+                    invoiceTable.find('tbody').html(newTbody);
+                    
+                    // Reseteamos el footer de selección por si acaso
+                    updateFooter();
+                });
+            }, 150); // 350ms de espera
+        });
+
+        // Evitar que al pulsar "Enter" se recargue la página de golpe
+        $('.search-row').on('submit', function(e) {
+            e.preventDefault();
+        });
+
+        updateFooter();
+    });
+
+    
+
+</script>
+{% endblock %}

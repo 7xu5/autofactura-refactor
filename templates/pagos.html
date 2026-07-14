@@ -1,0 +1,516 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Pagos</h1>
+        <p>Registro de movimientos y conciliación automática</p>
+    </div>
+</div>
+<section class="panel">
+    <form method="post" class="grid-2">
+        <div>
+            <label>Fecha de pago</label>
+            <input type="date" name="fecha_pago" value="{{ today.isoformat() if today else '' }}" />
+            
+            <label>Tipo de movimiento</label>
+            <select name="tipo_movimiento" id="tipo_movimiento">
+                <option value="Ingreso">Ingreso (Cobro)</option>
+                <option value="Egreso">Gasto (Pago)</option>
+            </select>
+            
+            <label>Factura asociada</label>
+            <select name="factura_id" id="select_factura">
+                <option value="">Ninguna</option>
+                {% for f in facturas %}
+                    {% if f.tipo != 'Rectificativa' and f.tipo_factura != 'Rectificativa' %}
+                        <option value="{{ f.id }}">{{ f.numero_factura }} - {{ f.contacto.nombre_fiscal }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+
+            <label>Gasto asociada</label>
+            <select name="gasto_id" id="select_gasto">
+                <option value="">Ninguno</option>
+                {% for g in gastos %}
+                    {% if g.tipo != 'Rectificativa' and g.tipo_gasto != 'Rectificativa' %}
+                        <option value="{{ g.id }}">{{ g.numero_factura_proveedor or 'Gasto '+g.tipo_gasto }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            
+            <div id="resumen-documento" style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-left: 4px solid #007bff; display: none;"></div>
+            
+            <label>Importe</label>
+            <input type="number" step="0.01" name="importe" placeholder="0.00" required />
+            
+            <label>Método de pago</label>
+            <select name="metodo_pago">
+                <option value="Efectivo">Efectivo</option>
+                <option value="Transferencia">Transferencia bancaria</option>
+                <option value="Tarjeta">Tarjeta de crédito/débito</option>
+                <option value="Domiciliación">Domiciliación bancaria (Recibo)</option>
+                <option value="Bizum">Bizum</option>
+                <option value="PayPal">PayPal</option>
+            </select>
+            
+            <div style="margin-top: 15px;">
+                <button type="submit" class="button">Registrar Movimiento</button>
+            </div>
+        </div>
+        <aside class="panel-info">
+            <h3>Resumen de Caja</h3>
+            <p>Ingresos: <strong>{{ '{:,.2f}'.format(total_ingresos) }} €</strong></p>
+            <p>Gastos: <strong>{{ '{:,.2f}'.format(total_gastos) }} €</strong></p>
+            <p>Balance Neto: <strong>{{ '{:,.2f}'.format(total_ingresos - total_gastos) }} €</strong></p>
+            
+            <hr style="margin: 15px 0;">
+            
+            <h3>Conciliación</h3>
+            <p>Pendiente de cobro (Clientes):</p>
+            <div style="font-size: 1.2rem; color: #d32f2f; font-weight: bold; margin-bottom: 10px;">
+                {{ '{:,.2f}'.format(pendiente_cobro) }} €
+            </div>
+            
+            <p>Pendiente de pago (Proveedores):</p>
+            <div style="font-size: 1.2rem; color: #e65100; font-weight: bold;">
+                {{ '{:,.2f}'.format(pendiente_pago) }} €
+            </div>
+        </aside>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>Facturas Pendientes de Cobro</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(0, this)">
+                    <div class="th-content"><span>Número</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(1, this)">
+                    <div class="th-content"><span>Cliente</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(2, this)">
+                    <div class="th-content"><span>Total</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(3, this)">
+                    <div class="th-content"><span>Pendiente</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(4, this)">
+                    <div class="th-content"><span>Estado</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in facturas if f.tipo != 'Rectificativa' and f.tipo_factura != 'Rectificativa' %}
+                {% set pagado = f.pagos|sum(attribute='importe') %}
+                {% set pendiente = f.total_factura - pagado %}
+                <tr>
+                    <td data-label="NÚMERO">{{ f.numero_factura }}</td>
+                    <td data-label="CLIENTE">{{ f.contacto.nombre_fiscal }}</td>
+                    <td data-label="TOTAL">{{ '{:,.2f}'.format(f.total_factura) }} €</td>
+                    <td data-label="PENDIENTE">{{ '{:,.2f}'.format(pendiente) }} €</td>
+                    <td data-label="ESTADO">
+                        <span class="badge {{ 'status-ok' if f.estado_contable == 'Cobrada' else 'status-pending' }}">
+                            {{ f.estado_contable }}
+                        </span>
+                    </td>
+                    <td data-label="ACCIÓN">
+                        <button type="button" class="button secondary small" title="Cargar datos en el formulario"
+                                onclick="cargarDocumentoEnFormulario('Ingreso', 'factura_id', '{{ f.id }}', '{{ pendiente }}')">
+                            <i class="bi bi-cash-coin"></i>&nbsp;Cobrar
+                        </button>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6">¡Excelente! No hay facturas pendientes de cobro.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h2>Gastos Pendientes de Pago</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(0, this)">
+                    <div class="th-content"><span>Proveedor/Tipo</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(1, this)">
+                    <div class="th-content"><span>Total</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(2, this)">
+                    <div class="th-content"><span>Pendiente</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(3, this)">
+                    <div class="th-content"><span>Estado</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in gastos %}
+                {% set pagado = g.pagos|sum(attribute='importe') %}
+                {% set pendiente = g.total_factura - pagado %}
+                <tr>
+                    <td data-label="PROVEEDOR/TIPO">{{ g.numero_factura_proveedor or g.tipo_gasto }}</td>
+                    <td data-label="TOTAL">{{ '{:,.2f}'.format(g.total_factura) }} €</td>
+                    <td data-label="PENDIENTE">{{ '{:,.2f}'.format(pendiente) }} €</td>
+                    <td data-label="ESTADO">
+                        <span class="badge {{ 'status-ok' if g.estado_pago == 'Pagada' else 'status-pending' }}">
+                            {{ g.estado_pago }}
+                        </span>
+                    </td>
+                    <td data-label="ACCIÓN">
+                        <button type="button" class="button secondary small" title="Cargar datos en el formulario"
+                                onclick="cargarDocumentoEnFormulario('Egreso', 'gasto_id', '{{ g.id }}', '{{ pendiente }}')">
+                            <i class="bi bi-cash-coin"></i>&nbsp;Pagar
+                        </button>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5">¡Excelente! No hay gastos pendientes de pago.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+        <h2 style="margin: 0;">Historial de Movimientos</h2>
+        
+        <!-- Buscador optimizado -->
+        <div style="position: relative; max-width: 450px; width: 100%; margin: 0;">
+            <input type="text" id="buscador-movimientos" onkeyup="filtrarMovimientos()" placeholder="Buscar por documento, fecha, método, contacto..." 
+                   style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;">
+        </div>
+    </div>
+
+    <table class="data-table" id="tabla-movimientos">
+        <thead>
+            <tr>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(0, this)">
+                    <div class="th-content"><span>Fecha Registro</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(1, this)">
+                    <div class="th-content"><span>Tipo</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(2, this)">
+                    <div class="th-content"><span>Documento</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(3, this)">
+                    <div class="th-content"><span>Fecha Emisión</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(4, this)">
+                    <div class="th-content"><span>Contacto</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(5, this)">
+                    <div class="th-content"><span>Método</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(6, this)">
+                    <div class="th-content"><span>Total Doc.</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(7, this)">
+                    <div class="th-content"><span>Cobrado/Pagado</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(8, this)">
+                    <div class="th-content"><span>Pendiente</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th class="sortable" style="cursor:pointer;" onclick="sortTable(9, this)">
+                    <div class="th-content"><span>Estado Doc.</span>&nbsp;<i class="bi bi-arrow-down-up"></i></div>
+                </th>
+                <th>Acciones</th> 
+            </tr>
+        </thead>
+        <tbody>
+            {% for pago in pagos %}
+                <tr>
+                    <td data-label="FECHA REGISTRO">{{ pago.fecha_pago.strftime('%Y-%m-%d') }}</td>
+                    <td data-label="TIPO">
+                        {% if pago.tipo_movimiento == 'Ingreso' %}
+                            Cobro
+                        {% else %}
+                            Gasto
+                        {% endif %}
+                    </td>
+                    <td data-label="DOCUMENTO">
+                        {% if pago.factura %}
+                            <strong>Factura {{ pago.factura.numero_factura }}</strong>
+                        {% elif pago.gasto %}
+                            <strong>
+                                {% if pago.gasto.numero_factura_proveedor and pago.gasto.numero_factura_proveedor.strip() %}
+                                    Gasto {{ pago.gasto.numero_factura_proveedor }}
+                                {% else %}
+                                    Gasto {{ pago.gasto.tipo_gasto }}
+                                {% endif %}
+                            </strong>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td data-label="FECHA EMISIÓN">
+                        {% if pago.factura %}
+                            {{ pago.factura.fecha_factura.strftime('%Y-%m-%d') }}
+                        {% elif pago.gasto %}
+                            {{ pago.gasto.fecha_factura.strftime('%Y-%m-%d') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td data-label="CONTACTO">
+                        {% if pago.factura and pago.factura.contacto %}
+                            <span style="color: #007bff; font-weight: 500;">{{ pago.factura.contacto.nombre_fiscal }}</span>
+                        {% elif pago.gasto and pago.gasto.contacto %}
+                            <span style="color: #007bff; font-weight: 500;">{{ pago.gasto.contacto.nombre_fiscal }}</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td data-label="MÉTODO">{{ pago.metodo_pago or '-' }}</td>
+                    
+                    <td data-label="TOTAL DOC.">
+                        {% if pago.factura %}
+                            {{ '{:,.2f}'.format(pago.factura.total_factura) }} €
+                        {% elif pago.gasto %}
+                            {{ '{:,.2f}'.format(pago.gasto.total_factura) }} €
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
+                    <td data-label="COBRADO/PAGADO">
+                        {% if pago.tipo_movimiento == 'Ingreso' %}
+                            <strong style="color: #2e7d32;">{{ '{:,.2f}'.format(pago.importe) }} €</strong>
+                        {% else %}
+                            <strong style="color: #c62828;">{{ '{:,.2f}'.format(pago.importe) }} €</strong>
+                        {% endif %}
+                    </td>
+
+                    <td data-label="PENDIENTE">
+                        {% if pago.factura %}
+                            {% set resto = pago.factura.total_factura - pago.importe %}
+                        {% elif pago.gasto %}
+                            {% set resto = pago.gasto.total_factura - pago.importe %}
+                        {% else %}
+                            {% set resto = 0 %}
+                        {% endif %}
+                        
+                        {% if resto == 0 %}
+                            <span style="color: #888;">0,00 €</span>
+                        {% elif resto < 0 %}
+                            <strong style="color: #dc2626; background: #fee2e2; padding: 2px 6px; border-radius: 4px;">{{ '{:,.2f}'.format(resto) }} €</strong>
+                        {% else %}
+                            <span style="color: #e65100;">{{ '{:,.2f}'.format(resto) }} €</span>
+                        {% endif %}
+                    </td>
+
+                    <td data-label="ESTADO DOC.">
+                        {% set estado_doc = pago.factura.estado_contable if pago.factura else pago.gasto.estado_pago if pago.gasto else '-' %}
+                        <span class="badge {{ 'status-ok' if estado_doc in ['Cobrada', 'Pagada'] else 'status-pending' }}">
+                            {{ estado_doc }}
+                        </span>
+                    </td>
+                    <td data-label="ACCIONES">
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <a class="button secondary small" href="{{ url_for('payments.pagos_editar', id=pago.id) }}">Editar</a>
+                            
+                            <form action="{{ url_for('payments.pagos_eliminar', id=pago.id) }}" method="post" 
+                                  onsubmit="return confirm('¿Estás seguro de que deseas anular y eliminar este pago? El estado del documento asociado se recalculará automáticamente.');" 
+                                  style="margin: 0; display: inline;">
+                                <button type="submit" class="button danger small" style="background-color: var(--error, #dc2626); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer;">
+                                    Anular
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="11">No hay movimientos registrados.</td></tr>
+            {% endfor %}
+            <tr id="sin-resultados" style="display: none;"><td colspan="11">No se encontraron movimientos que coincidan con la búsqueda.</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<script>
+let saldoPendiente = 0;
+
+function actualizarResumen(tipo, id) {
+    const div = document.getElementById('resumen-documento');
+    if (!id) {
+        div.style.display = 'none';
+        saldoPendiente = 0;
+        return;
+    }
+    fetch(`/pagos/api/detalle/${tipo}/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            saldoPendiente = data.pendiente;
+            div.style.display = 'block';
+            div.innerHTML = `<strong>Total:</strong> ${data.total.toFixed(2)} € | 
+                             <strong style="color: ${data.pendiente > 0 ? 'red' : 'green'}">
+                             Pendiente: ${data.pendiente.toFixed(2)} €</strong>`;
+        });
+}
+
+document.querySelector('form').addEventListener('submit', function(e) {
+    const importeInput = parseFloat(document.querySelector('input[name="importe"]').value);
+    if (saldoPendiente > 0 && importeInput > saldoPendiente) {
+        if (!confirm('¡Atención! El importe que vas a registrar es mayor al saldo pendiente. ¿Quieres continuar de todos modos?')) {
+            e.preventDefault();
+        }
+    }
+});
+
+const selectTipo = document.querySelector('select[name="tipo_movimiento"]');
+const selectFactura = document.querySelector('select[name="factura_id"]');
+const selectGasto = document.querySelector('select[name="gasto_id"]');
+
+if (selectFactura) {
+    selectFactura.addEventListener('change', (e) => {
+        const id = e.target.value;
+        if (id) {
+            if (selectTipo) selectTipo.value = 'Ingreso';
+            if (selectGasto) selectGasto.value = '';
+        }
+        actualizarResumen('factura', id);
+    });
+}
+
+if (selectGasto) {
+    selectGasto.addEventListener('change', (e) => {
+        const id = e.target.value;
+        if (id) {
+            if (selectTipo) selectTipo.value = 'Egreso';
+            if (selectFactura) selectFactura.value = '';
+        }
+        actualizarResumen('gasto', id);
+    });
+}
+
+function cargarDocumentoEnFormulario(tipoMovimiento, selectName, documentoId, importePendiente) {
+    if (selectTipo) selectTipo.value = tipoMovimiento;
+
+    if (selectName === 'factura_id' && selectFactura && selectGasto) {
+        selectFactura.value = documentoId;
+        selectGasto.value = "";
+        actualizarResumen('factura', documentoId);
+    } else if (selectName === 'gasto_id' && selectFactura && selectGasto) {
+        selectGasto.value = documentoId;
+        selectFactura.value = "";
+        actualizarResumen('gasto', documentoId);
+    }
+
+    const inputImporte = document.querySelector('input[name="importe"]');
+    if (inputImporte) {
+        inputImporte.value = parseFloat(importePendiente).toFixed(2);
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function sortTable(columnIndex, headerElement) {
+    const table = headerElement.closest('table');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    if (rows.length === 1 && rows[0].querySelector('td[colspan]')) return;
+
+    let asciiClass = 'asc';
+    if (headerElement.classList.contains('asc')) {
+        asciiClass = 'desc';
+        headerElement.classList.remove('asc');
+        headerElement.classList.add('desc');
+    } else {
+        headerElement.classList.remove('desc');
+        headerElement.classList.add('asc');
+    }
+    
+    table.querySelectorAll('th.sortable').forEach(th => {
+        if (th !== headerElement) th.classList.remove('asc', 'desc');
+    });
+
+    function getCellValue(row, idx) {
+        let text = row.cells[idx] ? row.cells[idx].textContent.trim() : '';
+        if (text.includes('€') || (!isNaN(parseFloat(text.replace(/[^0-9,-]/g, '').replace(',', '.'))) && text.includes(','))) {
+            return parseFloat(text.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0;
+        }
+        if (text.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            return text.replace(/-/g, '');
+        }
+        return text.toLowerCase();
+    }
+
+    rows.sort((a, b) => {
+        const valA = getCellValue(a, columnIndex);
+        const valB = getCellValue(b, columnIndex);
+        if (valA === valB) return 0;
+        if (asciiClass === 'asc') {
+            return valA > valB ? 1 : -1;
+        } else {
+            return valA < valB ? 1 : -1;
+        }
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// ==========================================
+// FUNCIÓN DE BÚSQUEDA CORREGIDA (IGNORA EL GUION EN INPUT Y FILA)
+// ==========================================
+function filtrarMovimientos() {
+    const input = document.getElementById('buscador-movimientos');
+    if (!input) return;
+    
+    // Al input le quitamos los acentos y TAMBIÉN los guiones (reemplazados por espacios para separar términos)
+    const query = input.value.toLowerCase()
+                       .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                       .replace(/-/g, " ")
+                       .trim();
+                       
+    const palabrasBusqueda = query.split(/\s+/).filter(p => p.length > 0);
+                        
+    const table = document.getElementById('tabla-movimientos');
+    if (!table) return;
+    
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr:not(#sin-resultados)'));
+    
+    if (rows.length === 1 && rows[0].innerText.includes('No hay movimientos')) return;
+
+    let coincidencias = 0;
+
+    rows.forEach(row => {
+        let textoFila = '';
+        for (let i = 0; i < row.cells.length - 1; i++) {
+            textoFila += row.cells[i].textContent + ' ';
+        }
+        
+        textoFila = textoFila.toLowerCase()
+                             .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                             .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ") // Convierte guiones y signos a espacios
+                             .replace(/\s+/g, ' ');
+
+        const cumpleFiltro = palabrasBusqueda.every(palabra => textoFila.includes(palabra));
+
+        if (cumpleFiltro) {
+            row.style.display = '';
+            coincidencias++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const filaSinResultados = document.getElementById('sin-resultados');
+    if (filaSinResultados) {
+        if (coincidencias === 0 && query !== '') {
+            filaSinResultados.style.display = '';
+        } else {
+            filaSinResultados.style.display = 'none';
+        }
+    }
+}
+</script>
+{% endblock %}

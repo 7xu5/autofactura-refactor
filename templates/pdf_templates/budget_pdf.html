@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: Helvetica, Arial, sans-serif; color: #1a2232; font-size: 11pt; line-height: 1.5; }
+        .header-table { width: 100%; margin-bottom: 30px; }
+        .logo-container { width: 15%; vertical-align: top; text-align: left; }
+        .doc-title { font-size: 18pt; font-weight: bold; text-align: right; color: #1a2232; }
+        .details-table { width: 100%; margin-bottom: 40px; }
+        .details-box { width: 48%; vertical-align: top; }
+        .box-title { font-size: 10pt; color: #6b7280; text-transform: uppercase; margin-bottom: 5px; font-weight: bold; }
+        .concepts-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .concepts-table th { background-color: #f3f4f6; color: #1a2232; font-weight: bold; text-align: left; padding: 5px; font-size: 10pt; border-bottom: 2px solid #d1d5db; }
+        .payment-box { font-size: 10pt; color: #4b5563; margin-top: 15px; line-height: 1.4; }
+        .totals-table { width: 100%; border-collapse: collapse; }
+        .totals-table td { padding: 4px 10px; }
+        .total-row { font-size: 13pt; font-weight: bold; background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <table class="header-table" style="width: 100%;">
+        <tr>
+            <td class="logo-container">
+                {% if logo_base64 %}<img src="{{ logo_base64 }}" width="150" />{% else %}<div style="font-size: 20pt; font-weight: bold; color: #d58a1d;">{{ config.nombre_empresa }}</div>{% endif %}
+            </td>
+            <td style="width: 80%; text-align: right; vertical-align: top;">
+                <span class="doc-title" style="display: block;">PRESUPUESTO</span>
+                <span style="font-size: 10.5pt; line-height: 1.4; display: block;">
+                    <strong>Número:</strong> {{ presupuesto.numero_presupuesto }}<br>
+                    <strong> Fecha:</strong> {{ presupuesto.fecha_emision.strftime('%d/%m/%Y') }}<br>
+                    <strong>Validez:</strong> {{ presupuesto.fecha_validez.strftime('%d/%m/%Y') }}<br>
+                    {% if presupuesto.referencia %}<strong>Ref:</strong> {{ presupuesto.referencia }}{% endif %}
+                </span>
+            </td>
+        </tr>
+    </table>
+
+    <table class="details-table">
+        <tr>
+            <td class="details-box" style="width: 48%;">
+                <div class="box-title">Emisor</div>
+                <strong>{{ config.nombre_empresa }}</strong><br>
+                CIF/NIF: {{ config.cif_nif }}<br>
+                {{ config.direccion_fiscal }}<br>
+                {{ config.codigo_postal }} {{ config.ciudad }}<br>
+                {{ config.email }}
+            </td>
+            <td style="width: 4%;"></td>
+            <td class="details-box" style="width: 48%;">
+                <div class="box-title">Cliente</div>
+                <strong>{{ cliente.nombre_fiscal }}</strong><br>
+                CIF/NIF: {{ cliente.numero_documento }}<br>
+                {{ cliente.direccion_fiscal }}<br>
+                {{ cliente.codigo_postal }} {{ cliente.ciudad }}
+            </td>
+        </tr>
+    </table>
+
+    <table class="concepts-table">
+        <thead>
+            <tr>
+                <th style="width: 45%;">Concepto / Descripción</th>
+                <th style="text-align: right; width: 10%;">Uds.</th>
+                <th style="text-align: right; width: 15%;">Precio</th>
+                <th style="text-align: right; width: 15%;">Impuestos</th>
+                <th style="text-align: right; width: 15%;">Total</th>
+            </tr>
+        </thead>
+        <tbody>{{ lineas_html | safe }}</tbody>
+    </table>
+
+    <table style="width: 100%; margin-top: 10px;">
+        <tr>
+            <td style="width: 55%;"></td> 
+            <td style="width: 45%; vertical-align: top;">
+                <table class="totals-table" style="width: 100%; border-collapse: collapse; float: right;">
+                    <tr>
+                        <td style="font-size: 10pt; color: #4b5563; padding: 4px 10px;">Base Imponible:</td>
+                        <td style="text-align: right; font-size: 10pt; padding: 4px 10px;">{{ "%.2f"|format(presupuesto.total_base_imponible) }} €</td>
+                    </tr>
+                    <tr>
+                        <td style="font-size: 10pt; color: #4b5563; padding: 4px 10px;">Impuestos:</td>
+                        <td style="text-align: right; font-size: 10pt; padding: 4px 10px;">{{ "%.2f"|format(presupuesto.total_impuestos) }} €</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="padding: 4px 10px 0 10px;"><div style="border-top: 1px solid #e5e7eb; height: 1px;"></div></td>
+                    </tr>
+                    <tr class="total-row">
+                        <td style="padding: 6px 10px; font-weight: bold;">TOTAL:</td>
+                        <td style="text-align: right; padding: 6px 10px; color: #1a2232; font-weight: bold;">{{ "%.2f"|format(presupuesto.total_presupuesto) }} €</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Bloque de Condiciones y Pago a ancho completo debajo de los totales -->
+    <div style="width: 100%; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+        <div class="payment-box" style="margin-top: 0;">
+            <strong>Método de pago:</strong> {{ metodo_pago.tipo if metodo_pago else 'Transferencia bancaria' }}
+            
+            {% if metodo_pago and (metodo_pago.entidad or metodo_pago.cuenta_iban) %}
+                <br>
+                <span style="font-size: 9pt; color: #374151;">
+                    {% if metodo_pago.entidad %}<strong>Entidad:</strong> {{ metodo_pago.entidad }} | {% endif %}
+                    {% if metodo_pago.cuenta_iban %}<strong>IBAN:</strong> {{ metodo_pago.cuenta_iban }}{% endif %}
+                </span>
+            {% endif %}
+
+            {% if config and config.nota_legal %}
+                <div style="font-size: 9pt; color: #6b7280; margin-top: 10px;">
+                    {{ config.nota_legal|replace('\n', '<br>')|safe }}
+                </div>
+            {% else %}
+                <div style="font-size: 9pt; color: #6b7280; margin-top: 10px;">
+                    Presupuesto válido hasta la fecha indicada. Los precios no incluyen impuestos no especificados.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

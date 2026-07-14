@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header space-between">
+    <div>
+        <a href="{{ url_for('expenses.gastos') }}" class="button primary">← Volver</a>
+        <h1>{{ 'Editar gasto' if gasto else 'Subir gasto' }}</h1>
+    </div>
+    <div class="page-actions">
+        <button type="submit" form="gastoForm" class="button primary">Guardar gasto</button>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="gastoForm">
+    <div id="data-config" 
+        data-url="{% if gasto and gasto.ruta_adjunto_url %}{{ url_for('static', filename=gasto.ruta_adjunto_url) }}{% endif %}" 
+        data-existe="{{ 'true' if gasto and gasto.ruta_adjunto_url else 'false' }}" 
+        style="display:none;">
+    </div>
+    {% if gasto %}
+        <input type="hidden" name="id" value="{{ gasto.id }}">
+        <input type="hidden" name="ruta_adjunto_actual" value="{{ gasto.ruta_adjunto_url or '' }}">
+    {% endif %}
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start;">
+        
+        <div class="column">
+            <section class="panel" style="padding: 20px; height: 100%;">
+                <h3>Documento</h3>
+                <div class="dropzone" id="dropzone" style="position: relative; height: 70vh; border: 2px dashed var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; background: transparent;">
+                    <div id="dropzone-content" style="text-align: center;">
+                        <p style="color: var(--muted);">Arrastra o selecciona el archivo</p>
+                    </div>
+                    <input type="file" name="documento" id="documento" accept=".pdf,.png,.jpg,.jpeg" style="position: absolute; top:0; left:0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 5;" />
+                    
+                    <div id="file-preview" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: var(--surface); z-index: 10; padding: 10px;">
+                        <div id="preview-container" style="width: 100%; height: 90%; overflow: auto;"></div>
+                        <button type="button" id="btn-cambiar" class="button secondary small">Cambiar archivo</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="column">
+            <section class="panel" style="padding: 20px; margin-bottom: 20px;">
+                <h3>Proveedor</h3>
+                <select name="contacto_id" id="contacto_id" required style="width: 100%;" onchange="cargarDatosProveedor()">
+                    <option value="" disabled selected>Selecciona un proveedor...</option>
+                    {% for c in contactos %}
+                        <option value="{{ c.id }}" 
+                                data-nif="{{ c.numero_documento }}" 
+                                data-direccion="{{ c.direccion_fiscal or '' }}"
+                                {% if gasto and gasto.contacto_id == c.id %}selected{% endif %}>
+                            {{ c.nombre_fiscal }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="panel-row" id="datos-proveedor" style="margin-top: 10px;">
+                    <div class="field-group half-width">
+                        <label>NIF/CIF</label>
+                        <input type="text" id="display_nif" readonly style="background: rgba(255, 255, 255, 0.05); color: var(--text);">
+                    </div>
+                    <div class="field-group half-width">
+                        <label>Dirección</label>
+                        <input type="text" id="display_direccion" readonly style="background: rgba(255, 255, 255, 0.05); color: var(--text);">
+                    </div>
+                </div>
+                <a class="button secondary small" href="{{ url_for('contacts.contactos') }}" target="_blank">+ Crear nuevo contacto</a>
+            </section>
+
+            <section class="panel" style="padding: 20px;">
+                <h3>Detalles de la Factura</h3>
+                <div class="field-group"><label>Número de factura</label><input type="text" name="numero_factura_proveedor" value="{{ gasto.numero_factura_proveedor if gasto }}"></div>
+                <div class="field-group"><label>Referencia</label><input type="text" name="referencia" value="{{ gasto.referencia if gasto }}"></div>
+                <div class="field-group"><label>Fecha factura*</label><input type="date" name="fecha_factura" required value="{{ gasto.fecha_factura.isoformat() if gasto else date.today().isoformat() }}"></div>
+                <div class="field-group"><label>Fecha vencimiento</label><input type="date" name="fecha_vencimiento" value="{{ gasto.fecha_vencimiento.isoformat() if gasto and gasto.fecha_vencimiento else '' }}"></div>
+                <div class="field-group">
+                    <label>Tipo de gasto</label>
+                    <select name="tipo_gasto">
+                        <option{% if not gasto or gasto.tipo_gasto == 'Compras operativas' %} selected{% endif %}>Compras operativas</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Gastos operativos' %} selected{% endif %}>Gastos operativos</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Seguridad Social / Autónomos' %} selected{% endif %}>Seguridad Social / Autónomos</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Servicios profesionales' %} selected{% endif %}>Servicios profesionales</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Alquileres / Coworking' %} selected{% endif %}>Alquileres / Coworking</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Suministros (Luz, agua)' %} selected{% endif %}>Suministros (Luz, agua)</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Teléfono e Internet' %} selected{% endif %}>Teléfono e Internet</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Software y Suscripciones' %} selected{% endif %}>Software y Suscripciones</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Material de oficina' %} selected{% endif %}>Material de oficina</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Publicidad y Marketing' %} selected{% endif %}>Publicidad y Marketing</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Transporte y Viajes' %} selected{% endif %}>Transporte y Viajes</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Dietas y Manutención' %} selected{% endif %}>Dietas y Manutención</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Combustible' %} selected{% endif %}>Combustible</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Seguros' %} selected{% endif %}>Seguros</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Gastos bancarios' %} selected{% endif %}>Gastos bancarios</option>
+                        <option{% if gasto and gasto.tipo_gasto == 'Otros gastos' %} selected{% endif %}>Otros gastos</option>
+                    </select>
+                </div>
+                
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border);">
+
+                <h3>Desglose de Impuestos</h3>
+                <table id="tax-table" style="width: 100%; border-collapse: collapse;">
+                    <thead><tr><th style="text-align: left; color: var(--text);">Tipo</th><th style="text-align: left; color: var(--text);">Base</th><th style="text-align: left; color: var(--text);">Cuota</th><th></th></tr></thead>
+                    <tbody id="tax-body">
+                        {% if gasto and gasto.impuestos %}
+                            {% for imp in gasto.impuestos %}
+                            <tr class="tax-row">
+                                <td>
+                                    <select name="impuesto_tipo[]">
+                                        <option {% if imp.tipo == '0% IGIC' %}selected{% endif %}>0% IGIC</option>
+                                        <option {% if imp.tipo == '3% IGIC' %}selected{% endif %}>3% IGIC</option>
+                                        <option {% if imp.tipo == '7% IGIC' %}selected{% endif %}>7% IGIC</option>
+                                        <option {% if imp.tipo == '9% IGIC' %}selected{% endif %}>9% IGIC</option>
+                                        <option {% if imp.tipo == '13% IGIC' %}selected{% endif %}>13% IGIC</option>
+                                        <option {% if imp.tipo == '21% IVA' %}selected{% endif %}>21% IVA</option>
+                                        <option {% if imp.tipo == '10% IVA' %}selected{% endif %}>10% IVA</option>
+                                    </select>
+                                </td>
+                                <td><input type="number" step="0.01" name="impuesto_base[]" class="calc-base" value="{{ imp.base }}"></td>
+                                <td><input type="number" step="0.01" name="impuesto_cuota[]" class="calc-cuota" value="{{ imp.cuota }}"></td>
+                                <td><button type="button" class="button secondary small" style="padding: 2px 8px;" onclick="this.parentElement.parentElement.remove(); calcularTotal();">×</button></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr class="tax-row">
+                                <td>
+                                    <select name="impuesto_tipo[]">
+                                        <option>0% IGIC</option>
+                                        <option>3% IGIC</option>
+                                        <option>7% IGIC</option>
+                                        <option>9% IGIC</option>
+                                        <option>13% IGIC</option>
+                                        <option>21% IVA</option>
+                                        <option>10% IVA</option>
+                                    </select>
+                                </td>
+                                <td><input type="number" step="0.01" name="impuesto_base[]" class="calc-base" value="0.00"></td>
+                                <td><input type="number" step="0.01" name="impuesto_cuota[]" class="calc-cuota" value="0.00"></td>
+                                <td><button type="button" class="button secondary small" style="padding: 2px 8px;" onclick="this.parentElement.parentElement.remove(); calcularTotal();">×</button></td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                <button type="button" id="btn-add-row" class="button secondary small" style="margin-top: 15px; display: inline-block;">+ Añadir línea</button>
+
+                <div class="field-group" style="margin-top: 15px;">
+                    <label>Retención IRPF (%)</label>
+                    <input type="number" step="0.01" name="porcentaje_retencion" id="porcentaje_retencion" value="{{ gasto.porcentaje_retencion if gasto else '0.00' }}">
+                    <small style="color: var(--muted); margin-top: 4px; font-size: 0.85em; display: block;">
+                        Porcentaje a retener (ej: 15% para profesionales autónomos).
+                    </small>
+                    <br>
+                    
+                    <label>Importe Retención</label>
+                    <input type="number" step="0.01" name="importe_retencion" id="importe_retencion" readonly value="{{ gasto.importe_retencion if gasto else '0.00' }}" style="background: rgba(255, 255, 255, 0.05); color: var(--text);">
+                    <small style="color: var(--muted); margin-top: 4px; font-size: 0.85em; display: block;">
+                        Se calcula automáticamente sobre la suma de las bases imponibles.
+                    </small>
+                </div>
+                
+                <div class="field-group" style="margin-top: 20px; background: var(--bg-panel-info); border: 1px solid var(--border); padding: 15px; border-radius: 6px;">
+                    <label><strong style="color: var(--text);">Total Factura final</strong></label>
+                    <input type="number" step="0.01" name="total_factura" id="total_factura" required readonly value="{{ gasto.total_factura if gasto else '0.00' }}" style="background: transparent; border:none; font-weight: bold; font-size: 1.4em; color: var(--text); padding: 0 !important;">
+                </div>
+            </section>
+        </div>
+    </div>
+    
+    <div class="form-actions">
+        <button type="submit" class="button primary">Guardar gasto</button>
+    </div>
+</form>
+
+<script>
+// --- LÓGICA DE PREVIEW ---
+const documento = document.getElementById('documento');
+const preview = document.getElementById('file-preview');
+const dropContent = document.getElementById('dropzone-content');
+
+function cargarDatosProveedor() {
+    const select = document.getElementById('contacto_id');
+    if (!select) return;
+    const selectedOption = select.options[select.selectedIndex];
+    const nif = selectedOption.getAttribute('data-nif');
+    const direccion = selectedOption.getAttribute('data-direccion');
+    document.getElementById('display_nif').value = nif || '';
+    document.getElementById('display_direccion').value = direccion || '';
+}
+
+function calcularTotal() {
+    let totalBase = 0;
+    let totalCuotas = 0;
+
+    document.querySelectorAll('.tax-row').forEach(row => {
+        const selectTipo = row.querySelector('select[name="impuesto_tipo[]"]');
+        const inputBase = row.querySelector('.calc-base');
+        const inputCuota = row.querySelector('.calc-cuota');
+
+        let base = parseFloat(inputBase.value) || 0;
+        
+        // --- NUEVA LÓGICA DE AUTOCÁLCULO CON EDITABILIDAD ---
+        // Extraemos el número del select (ej: "21% IVA" -> 21, "7% IGIC" -> 7)
+        const matchPorcentaje = selectTipo.value.match(/(\d+)%/);
+        const porcentajeImpuesto = matchPorcentaje ? parseFloat(matchPorcentaje[1]) : 0;
+
+        // Si la cuota está vacía, es "0.00" o si el evento actual proviene de cambiar la base/tipo, 
+        // autocalculamos de forma sugerida.
+        // Nota: Si el usuario la sobreescribe manualmente, se mantendrá su valor modificado.
+        if (document.activeElement !== inputCuota) {
+            let cuotaSugerida = base * (porcentajeImpuesto / 100);
+            inputCuota.value = cuotaSugerida.toFixed(2);
+        }
+        // ----------------------------------------------------
+
+        let cuota = parseFloat(inputCuota.value) || 0;
+
+        totalBase += base;
+        totalCuotas += cuota;
+    });
+
+    // Calcular Retención si aplica
+    const porcRetencion = parseFloat(document.getElementById('porcentaje_retencion').value) || 0;
+    const importeRetencion = totalBase * (porcRetencion / 100);
+    document.getElementById('importe_retencion').value = importeRetencion.toFixed(2);
+
+    // Total Factura = Bases + Cuotas - Retención
+    const totalFactura = (totalBase + totalCuotas) - importeRetencion;
+    document.getElementById('total_factura').value = totalFactura.toFixed(2);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    cargarDatosProveedor();
+    calcularTotal();
+
+    // Leemos los datos desde el HTML, el editor de código dejará de marcar errores
+    const config = document.getElementById('data-config');
+    const urlAdjunto = config.getAttribute('data-url');
+    const existeArchivo = config.getAttribute('data-existe') === 'true';
+
+    // 2. LÓGICA DE VISUALIZACIÓN
+    if (existeArchivo) {
+        const preview = document.getElementById('file-preview');
+        const dropContent = document.getElementById('dropzone-content');
+        const container = document.getElementById('preview-container');
+        
+        preview.style.display = 'block';
+        dropContent.style.display = 'none';
+        document.getElementById('documento').style.pointerEvents = 'none'; 
+        
+        if (urlAdjunto && urlAdjunto.toLowerCase().endsWith('.pdf')) {
+            container.innerHTML = `<iframe src="${urlAdjunto}" width="100%" height="100%" style="border:none;"></iframe>`;
+        } else if (urlAdjunto) {
+            container.innerHTML = `<img src="${urlAdjunto}" style="max-width: 100%;" />`;
+        }
+    }
+});
+
+// Eventos globales
+document.addEventListener('input', (e) => {
+    if (
+        e.target.classList.contains('calc-base') || 
+        e.target.classList.contains('calc-cuota') || 
+        e.target.id === 'porcentaje_retencion'
+    ) {
+        calcularTotal();
+    }
+});
+
+document.addEventListener('change', (e) => {
+    if (e.target.name === 'impuesto_tipo[]') {
+        calcularTotal();
+    }
+});
+
+function mostrarPrevisualizacion(file) {
+    const fileURL = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    dropContent.style.display = 'none';
+    documento.style.pointerEvents = 'none'; 
+    const container = document.getElementById('preview-container');
+    container.innerHTML = file.type === "application/pdf" ? `<iframe src="${fileURL}" width="100%" height="100%" style="border:none;"></iframe>` : `<img src="${fileURL}" style="max-width: 100%;" />`;
+}
+
+document.getElementById('btn-cambiar').addEventListener('click', () => {
+    documento.value = ''; 
+    documento.style.pointerEvents = 'auto'; 
+    preview.style.display = 'none';
+    dropContent.style.display = 'flex';
+});
+
+documento.addEventListener('change', (e) => { if (e.target.files[0]) mostrarPrevisualizacion(e.target.files[0]); });
+
+document.getElementById('btn-add-row').addEventListener('click', () => {
+    const tbody = document.getElementById('tax-body');
+    const plantillaRow = tbody.querySelector('.tax-row');
+    
+    if (plantillaRow) {
+        // Si existe al menos una fila, la clonamos (mantiene el comportamiento original)
+        const newRow = plantillaRow.cloneNode(true);
+        newRow.querySelectorAll('input').forEach(i => i.value = '0.00');
+        tbody.appendChild(newRow);
+    } else {
+        // Si el usuario borró absolutamente todas las filas, inyectamos una limpia desde cero
+        const newRow = document.createElement('tr');
+        newRow.className = 'tax-row';
+        newRow.innerHTML = `
+            <td>
+                <select name="impuesto_tipo[]">
+                    <option>0% IGIC</option>
+                    <option>3% IGIC</option>
+                    <option>7% IGIC</option>
+                    <option>9% IGIC</option>
+                    <option>13% IGIC</option>
+                    <option>21% IVA</option>
+                </select>
+            </td>
+            <td><input type="number" step="0.01" name="impuesto_base[]" class="calc-base" value="0.00"></td>
+            <td><input type="number" step="0.01" name="impuesto_cuota[]" class="calc-cuota" value="0.00"></td>
+            <td><button type="button" onclick="this.parentElement.parentElement.remove(); calcularTotal();">×</button></td>
+        `;
+        tbody.appendChild(newRow);
+    }
+    calcularTotal(); // Recalculamos por si acaso
+});
+
+document.querySelector('input[name="importe_retencion"]').addEventListener('input', calcularTotal);
+document.getElementById('porcentaje_retencion').addEventListener('input', calcularTotal);
+
+// --- NAVEGACIÓN ENTRE CASILLAS CON ENTER ---
+document.querySelector('form').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        // Si estamos en un textarea o en el botón de envío final, permitimos el comportamiento nativo
+        if (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'BUTTON' && e.target.type === 'submit')) {
+            return;
+        }
+
+        // Cancelamos la acción por defecto de enviar el formulario
+        e.preventDefault();
+
+        // Obtenemos todos los elementos del formulario que pueden recibir el foco y que estén visibles
+        const formElements = Array.from(this.elements).filter(el => {
+            return (
+                el.tagName === 'INPUT' || 
+                el.tagName === 'SELECT' || 
+                el.tagName === 'TEXTAREA' || 
+                (el.tagName === 'BUTTON' && el.type !== 'button')
+            ) && !el.readOnly && !el.disabled && el.type !== 'hidden' && el.style.display !== 'none';
+        });
+
+        const currentIndex = formElements.indexOf(e.target);
+
+        // Si existe un elemento siguiente, movemos el foco hacia él
+        if (currentIndex > -1 && currentIndex + 1 < formElements.length) {
+            formElements[currentIndex + 1].focus();
+            
+            // Si el siguiente elemento es un input de texto o número, seleccionamos su contenido para facilitar la edición rápida
+            if (formElements[currentIndex + 1].tagName === 'INPUT' && typeof formElements[currentIndex + 1].select === 'function') {
+                formElements[currentIndex + 1].select();
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

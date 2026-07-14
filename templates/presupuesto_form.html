@@ -1,0 +1,538 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header space-between">
+    <div>
+        <a href="{{ url_for('budgets.presupuestos') }}" class="button primary">← Volver</a>
+        <h1>Crear presupuesto</h1>
+    </div>
+    <div class="page-actions">
+        <button type="submit" class="button primary">Guardar presupuesto</button>
+        <button type="button" id="previewPdfButton" class="button secondary small">Previsualizar PDF</button>
+    </div>    
+</div>
+
+<form method="post">
+
+{% set initial_rows = lineas|length if lineas else 5 %}
+{% set render_rows = initial_rows if initial_rows >= 5 else 5 %}
+<input type="hidden" name="lineas_count" id="lineas_count" value="{{ render_rows }}" />
+
+<section class="panel panel-section">
+    <div class="section-row">
+        <div class="section-column">
+            <div class="field-group">
+                <label>Cliente*</label>
+                <select name="contacto_id" required>
+                    <option value="">Seleccionar cliente</option>
+                    {% for c in contactos %}
+                        <option value="{{ c.id }}"{% if selected_contacto_id is defined and selected_contacto_id == c.id %} selected{% endif %}>{{ c.nombre_fiscal }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="section-column compact">
+            <div class="field-group">
+                <label>Número de presupuesto*</label>
+                <input type="text" name="numero_presupuesto" required value="{{ presupuesto.numero_presupuesto if presupuesto else numero_presupuesto }}" />
+            </div>
+        </div>
+        <div class="section-column compact">
+            <div class="field-group">
+                <label>Referencia</label>
+                <input type="text" name="referencia" value="{{ referencia if referencia is defined else '' }}" />
+            </div>
+        </div>
+        <div class="section-column compact">
+            <div class="field-group">
+                <label>Estado</label>
+                <select name="estado">
+                    <option{% if estado is defined and estado == 'Borrador' %} selected{% endif %}>Borrador</option>
+                    <option{% if estado is defined and estado == 'Enviado' %} selected{% endif %}>Enviado</option>
+                    <option{% if estado is defined and estado == 'Aceptado' %} selected{% endif %}>Aceptado</option>
+                    <option{% if estado is defined and estado == 'Rechazado' %} selected{% endif %}>Rechazado</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-row">
+        <div class="section-column compact">
+            <div class="field-group">
+                <label>Fecha del presupuesto*</label>
+                <input type="date" name="fecha_emision" required value="{{ fecha_emision if fecha_emision is defined else date.today().isoformat() }}" />
+            </div>
+        </div>
+        <div class="section-column compact">
+            <div class="field-group">
+                <label>Vencimiento*</label>
+                <input type="date" name="fecha_validez" required value="{{ fecha_validez if fecha_validez is defined else date.today().isoformat() }}" />
+            </div>
+        </div>
+    </div>
+
+    <div class="notas">
+        <div class="section-column">
+            <div class="field-group">
+                <label>Notas</label>
+                <textarea name="notas" rows="3" style="width: 100%;">{{ notas if notas is defined else '' }}</textarea>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2>Líneas del presupuesto</h2>
+    </div>
+    
+    {% set initial_rows = lineas|length if lineas else 1 %}
+    {% set render_rows = initial_rows if initial_rows >= 1 else 1 %}
+    <input type="hidden" name="lineas_count" id="lineas_count" value="{{ render_rows }}" />
+
+    <table class="data-table line-items">
+        <thead>
+            <tr>
+                <th>Concepto*</th>
+                <th>Unidades*</th>
+                <th>Precio ud.*</th>
+                <th>Impuesto*</th>
+                <th>Descuento</th>
+                <th>Total</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="lineItemsBody">
+            {% for i in range(1, render_rows + 1) %}
+                {% set linea = lineas[i-1] if lineas and i-1 < lineas|length else None %}
+                {% if linea and linea.tipo == 'titulo' %}
+                    <tr class="line-title-row">
+                        <td colspan="7">
+                            <div class="line-title-row-inner">
+                                <input type="hidden" name="tipo_{{ i }}" value="titulo" />
+                                <input type="text" name="titulo_{{ i }}" class="line-title-input" placeholder="Título de sección" value="{{ linea.texto }}" />
+                                <button type="button" class="button secondary xsmall delete-title-button">Eliminar</button>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr class="line-item-row">
+                        <td style="display: flex; gap: 5px; align-items: center;">
+                            <input type="hidden" name="tipo_{{ i }}" value="linea" />
+                            <input type="text" name="concepto_{{ i }}" placeholder="Añadir concepto" value="{{ linea.concepto if linea else '' }}" style="flex-grow: 1;" />
+                            <button type="button" class="button secondary xsmall btn-catalogo" title="Catálogo">+</button>
+                        </td>
+                        <td><input type="number" name="unidades_{{ i }}" min="1" step="any" value="{{ linea.unidades if linea else '1' }}" /></td>
+                        <td><input type="number" step="0.01" name="precio_{{ i }}" value="{{ linea.precio if linea else '0.00' }}" /></td>
+                        <td>
+                            <select name="impuesto_{{ i }}">
+                                <option value=""{% if not linea or not linea.impuesto %} selected{% endif %} disabled hidden>Selecciona impuesto</option>
+                                <option value="0% Exento"{% if linea and linea.impuesto == '0% Exento' %} selected{% endif %}>0% Exento</option>
+                                <option value="4% IVA"{% if linea and linea.impuesto == '4% IVA' %} selected{% endif %}>4% IVA</option>
+                                <option value="10% IVA"{% if linea and linea.impuesto == '10% IVA' %} selected{% endif %}>10% IVA</option>
+                                <option value="21% IVA"{% if linea and linea.impuesto == '21% IVA' %} selected{% endif %}>21% IVA</option>
+                                <option value="3% IGIC"{% if linea and linea.impuesto == '3% IGIC' %} selected{% endif %}>3% IGIC</option>
+                                <option value="7% IGIC"{% if linea and linea.impuesto == '7% IGIC' %} selected{% endif %}>7% IGIC</option>
+                                <option value="9% IGIC"{% if linea and linea.impuesto == '9% IGIC' %} selected{% endif %}>9% IGIC</option>
+                                <option value="13% IGIC"{% if linea and linea.impuesto == '13% IGIC' %} selected{% endif %}>13% IGIC</option>
+                            </select>
+                        </td>
+                        <td><input type="number" step="0.01" name="descuento_{{ i }}" value="{{ linea.descuento if linea and linea.descuento else '0' }}" /></td>
+                        <td><input type="text" disabled class="line-total" value="{{ linea.total if linea else '0.00' }}" /></td>
+                        <td><button type="button" class="button secondary xsmall delete-line-button">x</button></td>
+                    </tr>
+                    <tr class="line-detail-row">
+                        <td colspan="7"><textarea name="informacion_{{ i }}" class="line-detail-text" placeholder="Información adicional">{{ linea.informacion if linea and linea.informacion else '' }}</textarea></td>
+                    </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="line-actions">
+        <button type="button" id="addLineButton" class="button secondary small">+ Añadir línea de concepto</button>
+        <button type="button" id="addTitleButton" class="button secondary small">+ Añadir cabecera</button>
+    </div>
+</section>
+
+<section class="panel panel-section">
+    <div class="section-row reverse">
+        <div class="summary-panel">
+            <div class="field-group toggle-panel">
+                <label>Método de Pago*</label>
+                <select name="metodo_pago_id" required>
+                    <option value="">Selecciona un método</option>
+                    {% for mp in metodos_pago %}
+                        <option value="{{ mp.id }}" 
+                                data-tipo="{{ mp.tipo }}" 
+                                data-entidad="{{ mp.entidad or '' }}" 
+                                data-iban="{{ mp.cuenta_iban or '' }}"
+                                {% if selected_metodo_pago_id is defined and selected_metodo_pago_id == mp.id %}selected{% endif %}>
+                            {{ mp.nombre }} ({{ mp.tipo }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <small>Este método aparecerá en la zona inferior del PDF.</small>
+                <a href="{{ url_for('config.configuracion') }}" target="_blank" class="button secondary xsmall" style="margin-top: 8px; display: inline-block;">Gestionar métodos</a>
+            </div>
+        </div> <aside class="summary-box">
+            <div class="summary-row"><span>Base imponible</span><strong id="summary_base">0.00 €</strong></div>
+            <div class="summary-row"><span id="summary_tax_label">Impuestos</span><strong id="summary_iva">0.00 €</strong></div>
+            <div class="summary-row total"><span>Total</span><strong id="summary_total">0.00 €</strong></div>
+        </aside>
+    </div>
+</section>
+
+<div class="form-actions">
+    <button type="submit" class="button primary">Guardar presupuesto</button>
+</div>
+
+<section id="previewContainer" class="panel" style="display: none; margin-top: 2rem; border-top: 3px solid var(--primary-color);">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0;">Vista previa del presupuesto</h2>
+        <div class="button-group">
+            <button type="button" id="saveFromPreviewBtn" class="button primary small">Guardar presupuesto ahora</button>
+            <button type="button" id="downloadPreviewBtn" class="button secondary small">Descargar PDF</button>
+            <button type="button" class="button secondary small" onclick="document.getElementById('previewContainer').style.display='none'">Cerrar</button>
+        </div>
+    </div>
+    <iframe id="previewIframe" style="width: 100%; height: 800px; border: 1px solid #ddd; border-radius: 4px; margin-top: 1rem;"></iframe>
+</section>
+
+</form>
+
+<div id="productos-data" data-json='{{ productos_json | safe }}' style="display:none;"></div>
+<div id="modalProductos" class="modal-overlay" style="display:none;">
+    <div class="modal-content-box">
+        <h3>Seleccionar Producto</h3>
+        <input type="text" id="filtroProductos" placeholder="Buscar..." onkeyup="filtrarLista()" style="width:100%; margin-bottom:10px;">
+        <ul id="listaCatalogo" style="max-height:300px; overflow-y:auto; list-style:none; padding:0;"></ul>
+        <button type="button" class="button secondary" onclick="document.getElementById('modalProductos').style.display='none'">Cerrar</button>
+    </div>
+</div>
+
+
+<script>
+    const productos_json = document.getElementById('productos-data').dataset.json;
+    const productos_data = JSON.parse(productos_json);
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const lineItemsBody = document.getElementById('lineItemsBody');
+        const addLineButton = document.getElementById('addLineButton');
+        const addTitleButton = document.getElementById('addTitleButton');
+        const lineasCountInput = document.getElementById('lineas_count');
+
+        const summaryBase = document.getElementById('summary_base');
+        const summaryIva = document.getElementById('summary_iva');
+        const summaryTaxLabel = document.getElementById('summary_tax_label');
+        const summaryTotal = document.getElementById('summary_total');
+
+        let lineCount = parseInt(lineasCountInput.value || '5', 10);
+
+        // Autocomplete logic
+        const autocompleteBox = document.createElement('div');
+        autocompleteBox.className = 'autocomplete-list';
+        document.body.appendChild(autocompleteBox);
+
+        function closeAutocomplete() {
+            autocompleteBox.style.display = 'none';
+            autocompleteBox.innerHTML = '';
+        }
+
+        function fillProduct(product, input) {
+            const row = input.closest('tr');
+            if (!row) return;
+            
+            // Rellenar campos básicos
+            row.querySelector('input[name^="concepto_"]').value = product.nombre;
+            const priceInput = row.querySelector('input[name^="precio_"]');
+            const taxSelect = row.querySelector('select[name^="impuesto_"]');
+            
+            if (priceInput) priceInput.value = parseFloat(product.precio).toFixed(2);
+            if (taxSelect) {
+                for (const option of taxSelect.options) {
+                    if (option.value === product.impuesto) {
+                        option.selected = true;
+                        break;
+                    }
+                }
+            }
+
+            // Rellenar información adicional (fila siguiente)
+            const infoRow = row.nextElementSibling;
+            if (infoRow && infoRow.classList.contains('line-detail-row')) {
+                const textArea = infoRow.querySelector('textarea[name^="informacion_"]');
+                if (textArea) {
+                    textArea.value = product.descripcion_adicional || '';
+                }
+            }
+
+            closeAutocomplete();
+            calculateTotals();
+        }
+
+        function showAutocomplete(input, results) {
+            if (!results.length) { closeAutocomplete(); return; }
+            const rect = input.getBoundingClientRect();
+            autocompleteBox.style.left = `${rect.left}px`;
+            autocompleteBox.style.top = `${rect.bottom + window.scrollY}px`;
+            autocompleteBox.style.width = `${rect.width}px`;
+            autocompleteBox.innerHTML = '';
+            autocompleteBox.style.display = 'block';
+            results.slice(0, 5).forEach(product => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.textContent = `${product.nombre} · ${parseFloat(product.precio).toFixed(2)} € · ${product.impuesto}`;
+                item.addEventListener('mousedown', (e) => { e.preventDefault(); fillProduct(product, input); });
+                autocompleteBox.appendChild(item);
+            });
+        }
+
+        function attachAutocomplete(input) {
+            input.addEventListener('input', async function() {
+                const term = this.value.trim();
+                if (!term) { closeAutocomplete(); return; }
+                const response = await fetch(`/api/productos?q=${encodeURIComponent(term)}`);
+                if (response.ok) showAutocomplete(this, await response.json());
+            });
+            input.addEventListener('blur', () => setTimeout(closeAutocomplete, 150));
+        }
+
+        function parseNumber(value) {
+            if (!value) return 0;
+            value = String(value).replace(',', '.').trim();
+            const parsed = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return Number.isFinite(parsed) ? parsed : 0;
+        }
+
+        function parseTaxPercentage(value) {
+            if (!value) return 0;
+            const match = value.match(/([0-9]+(\.[0-9]+)?)/);
+            return match ? parseFloat(match[1]) : 0;
+        }
+
+        function calculateTotals() {
+            let baseTotal = 0;
+            let ivaTotal = 0;
+            let totalGeneral = 0;
+            const usedTaxes = new Set();
+
+            document.querySelectorAll('.line-item-row').forEach(row => {
+                const conceptInput = row.querySelector('input[name^="concepto_"]');
+                if (!conceptInput) return;
+                const concept = conceptInput.value.trim();
+                const units = parseNumber(row.querySelector('input[name^="unidades_"]').value);
+                const price = parseNumber(row.querySelector('input[name^="precio_"]').value);
+                const discount = parseNumber(row.querySelector('input[name^="descuento_"]')?.value || '0');
+                const taxValue = row.querySelector('select[name^="impuesto_"]').value;
+                const percentage = parseTaxPercentage(taxValue);
+                const totalField = row.querySelector('.line-total');
+
+                if (!concept || units <= 0 || price <= 0) {
+                    totalField.value = '0.00';
+                    return;
+                }
+
+                if (/IGIC/i.test(taxValue)) usedTaxes.add('IGIC');
+                else if (/IVA/i.test(taxValue)) usedTaxes.add('IVA');
+
+                const lineBase = units * price;
+                const lineDiscount = lineBase * (discount / 100);
+                const applicableBase = Math.max(0, lineBase - lineDiscount);
+                const lineTax = applicableBase * (percentage / 100);
+                const lineTotal = applicableBase + lineTax;
+
+                totalField.value = lineTotal.toFixed(2);
+                baseTotal += applicableBase;
+                ivaTotal += lineTax;
+                totalGeneral += lineTotal;
+            });
+
+            summaryBase.textContent = `${baseTotal.toFixed(2)} €`;
+            summaryIva.textContent = `${ivaTotal.toFixed(2)} €`;
+            summaryTaxLabel.textContent = usedTaxes.size === 1 ? [...usedTaxes][0] : (usedTaxes.size > 1 ? 'IVA / IGIC' : 'Impuestos');
+            summaryTotal.textContent = `${totalGeneral.toFixed(2)} €`;
+        }
+
+        function attachLineEvents(row) {
+            const inputs = row.querySelectorAll('input[name^="unidades_"], input[name^="precio_"], input[name^="concepto_"], input[name^="descuento_"], select[name^="impuesto_"]');
+            inputs.forEach(input => input.addEventListener('input', calculateTotals));
+            const conceptInput = row.querySelector('input[name^="concepto_"]');
+            if (conceptInput) attachAutocomplete(conceptInput);
+        }
+
+        function createLineRow(index, data = {}) {
+            const tr = document.createElement('tr');
+            tr.className = 'line-item-row';
+            tr.innerHTML = `
+                <td style="display: flex; gap: 5px; align-items: center;">
+                    <input type="hidden" name="tipo_${index}" value="linea" />
+                    <input type="text" name="concepto_${index}" placeholder="Añadir concepto" value="${data.concepto || ''}" style="flex-grow: 1;" />
+                    <button type="button" class="button secondary xsmall btn-catalogo" title="Catálogo">+</button>
+                </td>
+                <td><input type="number" name="unidades_${index}" min="1" value="${data.unidades || '1'}" /></td>
+                <td><input type="number" step="0.01" name="precio_${index}" value="${data.precio || '0.00'}" /></td>
+                <td>
+                    <select name="impuesto_${index}">
+                        <option value="21% IVA"${data.impuesto === '21% IVA' ? ' selected' : ''}>21% IVA</option>
+                        <option value="3% IGIC"${data.impuesto === '3% IGIC' ? ' selected' : ''}>3% IGIC</option>
+                        <option value="7% IGIC"${data.impuesto === '7% IGIC' ? ' selected' : ''}>7% IGIC</option>
+                        <option value="9% IGIC"${data.impuesto === '9% IGIC' ? ' selected' : ''}>9% IGIC</option>
+                        <option value="13% IGIC"${data.impuesto === '13% IGIC' ? ' selected' : ''}>13% IGIC</option>
+                    </select>
+                </td>
+                <td><input type="number" step="0.01" name="descuento_${index}" value="${data.descuento || '0'}" /></td>
+                <td><input type="text" disabled class="line-total" value="${data.total || '0.00'}" /></td>
+                <td><button type="button" class="button secondary xsmall delete-line-button">x</button></td>
+            `;
+            const infoRow = document.createElement('tr');
+            infoRow.className = 'line-detail-row';
+            infoRow.innerHTML = `
+                <td colspan="7"><textarea name="informacion_${index}" class="line-detail-text" placeholder="Información adicional">${data.informacion || ''}</textarea></td>
+            `;
+            return [tr, infoRow];
+        }
+
+        function createTitleRow(text = 'Título de sección') {
+            const row = document.createElement('tr');
+            row.className = 'line-title-row';
+            row.innerHTML = `
+                <td colspan="7">
+                    <div class="line-title-row-inner">
+                        <input type="hidden" name="tipo_${lineCount}" value="titulo" />
+                        <input type="text" name="titulo_${lineCount}" class="line-title-input" placeholder="Título de sección" value="${text}" />
+                        <button type="button" class="button secondary xsmall delete-title-button">x</button>
+                    </div>
+                </td>
+            `;
+            return row;
+        }
+
+        function addLineRow(data = {}) {
+            lineCount += 1;
+            lineasCountInput.value = lineCount;
+            const [row, infoRow] = createLineRow(lineCount, data);
+            lineItemsBody.appendChild(row);
+            lineItemsBody.appendChild(infoRow);
+            attachLineEvents(row);
+        }
+
+        function refreshLineCount() {
+            const indices = Array.from(document.querySelectorAll('input[name^="tipo_"]'))
+                .map(input => parseInt(input.name.split('_')[1], 10)).filter(Number.isFinite);
+            lineCount = indices.length ? Math.max(...indices) : 0;
+            lineasCountInput.value = lineCount;
+        }
+
+        lineItemsBody.addEventListener('click', function(event) {
+            const deleteButton = event.target.closest('.delete-line-button, .delete-title-button');
+            if (!deleteButton) return;
+            const row = deleteButton.closest('tr');
+            if (!row) return;
+            if (row.classList.contains('line-item-row')) {
+                const nextRow = row.nextElementSibling;
+                if (nextRow && nextRow.classList.contains('line-detail-row')) {
+                    nextRow.remove();
+                }
+            }
+            row.remove();
+            refreshLineCount();
+            calculateTotals();
+        });
+
+        if (addLineButton) {
+            addLineButton.addEventListener('click', function() {
+                addLineRow();
+            });
+        }
+
+        if (addTitleButton) {
+            addTitleButton.addEventListener('click', function() {
+                lineCount += 1;
+                lineasCountInput.value = lineCount;
+                lineItemsBody.appendChild(createTitleRow());
+            });
+        }
+
+        const previewPdfButton = document.getElementById('previewPdfButton');
+        console.log("¿Existe el botón?:", !!previewPdfButton);
+        const previewContainer = document.getElementById('previewContainer');
+        const previewIframe = document.getElementById('previewIframe');
+        const downloadPreviewBtn = document.getElementById('downloadPreviewBtn');
+        const saveFromPreviewBtn = document.getElementById('saveFromPreviewBtn');
+        let currentPreviewUrl = null;
+
+        document.addEventListener('click', async function(e) {
+            if (e.target && e.target.id === 'previewPdfButton') {
+                e.preventDefault(); // Evita cualquier comportamiento extraño
+                
+                const form = document.querySelector('form');
+                const formData = new FormData(form);
+                
+                console.log("Iniciando previsualización..."); // Esto nos dirá si al menos detecta el clic
+
+                try {
+                    const response = await fetch("{{ url_for('budgets.presupuesto_previsualizar') }}", {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        if (currentPreviewUrl) window.URL.revokeObjectURL(currentPreviewUrl);
+                        currentPreviewUrl = window.URL.createObjectURL(blob);
+                        
+                        const previewIframe = document.getElementById('previewIframe');
+                        previewIframe.src = currentPreviewUrl + '#toolbar=1&navpanes=0&scrollbar=1';
+                        document.getElementById('previewContainer').style.display = 'block';
+                        document.getElementById('previewContainer').scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        console.error("Error del servidor:", await response.text());
+                        alert('El servidor falló al generar el PDF. Revisa la consola (F12).');
+                    }
+                } catch (error) {
+                    console.error("Error en el fetch:", error);
+                    alert('No se pudo conectar con el servidor.');
+                }
+            }
+        });
+
+        // --- Lógica del Catálogo (Botón +) ---
+        let filaParaRellenar = null;
+
+        lineItemsBody.addEventListener('click', function(e) {
+            if (e.target.classList.contains('btn-catalogo')) {
+                filaParaRellenar = e.target.closest('tr');
+                document.getElementById('modalProductos').style.display = 'block';
+                renderizarLista(productos_data);
+            }
+        });
+
+        window.filtrarLista = function() {
+            const term = document.getElementById('filtroProductos').value.toLowerCase();
+            const filtered = productos_data.filter(p => p.nombre.toLowerCase().includes(term));
+            renderizarLista(filtered);
+        };
+
+        function renderizarLista(data) {
+            const lista = document.getElementById('listaCatalogo');
+            lista.innerHTML = '';
+            data.forEach(p => {
+                const li = document.createElement('li');
+                li.style.padding = '10px';
+                li.style.borderBottom = '1px solid #eee';
+                li.style.cursor = 'pointer';
+                li.innerHTML = `<strong>${p.nombre}</strong> - ${parseFloat(p.precio).toFixed(2)}€`;
+                li.onclick = () => {
+                    if (filaParaRellenar) {
+                        fillProduct(p, filaParaRellenar.querySelector('input[name^="concepto_"]'));
+                        document.getElementById('modalProductos').style.display = 'none';
+                    }
+                };
+                lista.appendChild(li);
+            });
+        }
+
+        document.querySelectorAll('.line-item-row').forEach(attachLineEvents);
+        calculateTotals();
+    });
+</script>
+{% endblock %}

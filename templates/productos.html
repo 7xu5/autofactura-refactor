@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Productos y servicios</h1>
+        <p>Catálogo para auto-completado en facturas</p>
+    </div>
+    
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <a href="{{ url_for('products.producto_nuevo') }}" class="button primary">Añadir producto</a>
+    </div>
+    
+</div>
+<section class="panel">
+    <div style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
+        <input type="text" id="table-search" placeholder="Buscar producto..." class="form-control" style="padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px; min-width: 400px; max-width: 450px;">
+    </div>
+    <table class="data-table">
+        
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Descripción</th>
+                <th>Precio Base</th>
+                <th>Impuesto</th>
+                <th>Acciones</th> 
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in productos %}
+                <!-- id en un data-attribute para poder ordenar por él -->
+                <tr data-id="{{ p.id }}">
+                    <td data-label="CÓDIGO">{{ p.codigo or '-' }}</td>
+                    <td data-label="NOMBRE">{{ p.nombre }}</td>
+                    <td data-label="DESCRIPCIÓN">{{ p.descripcion or '-' }}</td>
+                    <td data-label="PRECIO BASE">{{ '{:,.2f}'.format(p.precio_unitario_base) }} €</td>
+                    <td data-label="IMPUESTO">{{ p.impuesto_defecto }}</td>
+                    <td data-label="ACCIONES">
+                        <div class="actions-wrapper-responsive" style="display: flex; gap: 5px;">
+                            <a href="{{ url_for('products.editar_producto', id=p.id) }}" class="button secondary small">Editar</a>
+                            <form action="{{ url_for('products.borrar_producto', id=p.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="button secondary small" onclick="return confirm('¿Borrar producto?')">Borrar</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<script>
+    $(function() {
+        const productoTable = $('.data-table');
+
+        // --- SISTEMA DE ORDENACIÓN DE TABLA ---
+        productoTable.find('thead th').each(function(index) {
+            if (index < productoTable.find('thead th').length - 1) {
+                $(this).addClass('sortable').css('cursor', 'pointer');
+                const currentText = $(this).text();
+                $(this).html(`<div class="th-content"><span>${currentText}</span> <i class="bi bi-arrow-down-up" style="font-size: 0.8rem; opacity: 0.5; margin-left: 5px;"></i></div>`);
+            }
+        });
+
+        function getCellValue(row, idx) {
+            let text = $(row).children('td').eq(idx).text().trim();
+            if (idx === 3) { 
+                return parseFloat(text.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0;
+            }
+            return text.toLowerCase();
+        }
+
+        // 1. ORDENACIÓN INICIAL POR ID 
+        function ordenarPorId() {
+            const tbody = productoTable.find('tbody');
+            const rows = tbody.find('tr').get();
+
+            rows.sort(function(a, b) {
+                const idA = parseInt($(a).data('id')) || 0;
+                const idB = parseInt($(b).data('id')) || 0;
+                // Orden ascendente
+                return idA - idB; 
+            });
+
+            $.each(rows, function(i, row) {
+                tbody.append(row);
+            });
+        }
+        
+        // Ejecutar ordenación por ID nada más cargar la página
+        ordenarPorId();
+
+        // Ordenación manual al hacer clic en las cabeceras de columnas
+        productoTable.on('click', 'th.sortable', function() {
+            const th = $(this);
+            const index = th.index();
+            const tbody = productoTable.find('tbody');
+            const rows = tbody.find('tr').get();
+            let asciiClass = 'asc';
+
+            if (th.hasClass('asc')) {
+                asciiClass = 'desc';
+                th.removeClass('asc').addClass('desc');
+            } else {
+                th.removeClass('desc').addClass('asc');
+            }
+            
+            productoTable.find('th.sortable').not(th).removeClass('asc desc');
+
+            rows.sort(function(a, b) {
+                const valA = getCellValue(a, index);
+                const valB = getCellValue(b, index);
+                if (valA === valB) return 0;
+                return asciiClass === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+            });
+
+            $.each(rows, function(i, row) {
+                tbody.append(row);
+            });
+        });
+
+        // 2. BUSCADOR EN TIEMPO REAL (Evento 'input' captura cambios instantáneamente)
+        $('#table-search').on('input', function() {
+            const searchTerm = $(this).val().toLowerCase().trim();
+            
+            productoTable.find('tbody tr').each(function() {
+                const row = $(this);
+                // Buscamos dentro del texto de las celdas (excluyendo los botones de acción)
+                const textToSearch = row.find('td').slice(0, -1).text().toLowerCase();
+                
+                if (textToSearch.includes(searchTerm)) {
+                    row.show();
+                } else {
+                    row.hide();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,960 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header space-between">
+    <div>
+        <h1>Configuración</h1>
+        <p>Ajustes generales de facturación y datos de la empresa</p>  
+    </div>
+    <div class="config-footer-actions">
+        <button type="submit" form="config-form" class="button primary">Guardar configuración</button>
+    </div>
+</div>
+
+<form id="config-form" method="post" enctype="multipart/form-data">
+    <section class="panel panel-section">
+        
+        <fieldset class="config-fieldset">
+            <legend class="config-legend">Datos de la Empresa</legend>
+            
+            <div class="section-row">
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Nombre de la empresa</label>
+                        <input type="text" name="nombre_empresa" value="{{ configuracion.nombre_empresa if configuracion else '' }}" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>CIF / NIF</label>
+                        <input type="text" name="cif_nif" value="{{ configuracion.cif_nif if configuracion else '' }}" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Dirección fiscal</label>
+                        <input type="text" name="direccion_fiscal" value="{{ configuracion.direccion_fiscal if configuracion else '' }}" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Código postal</label>
+                        <input type="text" name="codigo_postal" value="{{ configuracion.codigo_postal if configuracion else '' }}" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Ciudad</label>
+                        <input type="text" name="ciudad" value="{{ configuracion.ciudad if configuracion else '' }}" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Provincia</label>
+                        <input type="text" name="provincia" value="{{ configuracion.provincia if configuracion else '' }}" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>País</label>
+                        <input type="text" name="pais" value="{{ configuracion.pais if configuracion else 'España' }}" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Teléfono</label>
+                        <input type="text" name="telefono" value="{{ configuracion.telefono if configuracion else '' }}" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Email</label>
+                        <input type="email" name="email" value="{{ configuracion.email if configuracion else '' }}" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Website</label>
+                        <input type="text" name="website" value="{{ configuracion.website if configuracion else '' }}" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Logo de la empresa</label>
+                        <input type="file" name="logo" accept="image/png, image/jpeg" />
+                        {% if configuracion and configuracion.logo_path %}
+                        <div class="note">Logo actual:</div>
+                        <img class="invoice-logo" src="{{ url_for('static', filename=configuracion.logo_path) }}" alt="Logo de la empresa" />
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="section-column"></div>
+            </div>
+        </fieldset>
+
+        <fieldset class="config-fieldset">
+            <legend class="config-legend">Series y Numeración</legend>
+            
+            <div class="section-row" style="margin-bottom: 1rem;">
+                <div class="section-column compact">
+                    <div class="field-group">
+                        <label>Serie factura</label>
+                        <input type="text" name="serie_factura" value="{{ configuracion.serie_factura if configuracion else 'F26-' }}" />
+                    </div>
+                </div>
+                <div class="section-column compact">
+                    <div class="field-group">
+                        <label>Nº inicial factura</label>
+                        <input type="number" min="1" name="numero_inicial_factura" value="{{ configuracion.numero_inicial_factura if configuracion else 1 }}" />
+                    </div>
+                </div>
+
+                <div class="section-column compact">
+                    <div class="field-group">
+                        <label>Serie presupuesto</label>
+                        <input type="text" name="serie_presupuesto" value="{{ configuracion.serie_presupuesto if configuracion else 'PR-2026-' }}" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Nº inicial presupuesto</label>
+                        <input type="number" min="1" name="numero_inicial_presupuesto" value="{{ configuracion.numero_inicial_presupuesto if configuracion else 1 }}" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="section-column compact">
+                    <div class="field-group group-info">
+                        <label>Serie albarán</label>
+                        <input type="text" name="serie_albaran" value="{{ configuracion.serie_albaran if configuracion else 'ALB26-' }}" />
+                    </div>
+                </div>
+                <div class="section-column compact">
+                    <div class="field-group group-info">
+                        <label>Nº inicial albarán</label>
+                        <input type="number" min="1" name="numero_inicial_albaran" value="{{ configuracion.numero_inicial_albaran if configuracion else 1 }}" />
+                    </div>
+                </div>
+
+                <div class="section-column compact">
+                    <div class="field-group group-warning">
+                        <label>Serie rectificativa</label>
+                        <input type="text" name="serie_rectificativa" value="{{ configuracion.serie_rectificativa if configuracion else 'R26-' }}" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group group-warning">
+                        <label>Nº inicial rectificativa</label>
+                        <input type="number" min="1" name="numero_inicial_rectificativa" value="{{ configuracion.numero_inicial_rectificativa if configuracion else 1 }}" />
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="config-fieldset">
+            <legend class="config-legend">Preferencias de Facturación</legend>
+            
+            <div class="section-row">
+                <div class="section-column compact">
+                    <div class="field-group">
+                        <label>Moneda por defecto</label>
+                        <input type="text" name="moneda_defecto" value="{{ configuracion.moneda_defecto if configuracion else 'Euro (€)' }}" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Método de pago predeterminado</label>
+                        <input type="text" name="metodo_pago_defecto" value="{{ configuracion.metodo_pago_defecto if configuracion else 'Transferencia bancaria' }}" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Impuesto por defecto</label>
+                        <select name="impuesto_defecto">
+                            <option{% if not configuracion or configuracion.impuesto_defecto == '0% Exento' %} selected{% endif %}>0% Exento</option>
+                            <option{% if configuracion and configuracion.impuesto_defecto == '4% IVA' %} selected{% endif %}>4% IVA</option>
+                            <option{% if configuracion and configuracion.impuesto_defecto == '10% IVA' %} selected{% endif %}>10% IVA</option>
+                            <option{% if not configuracion or configuracion.impuesto_defecto == '21% IVA' %} selected{% endif %}>21% IVA</option>
+                            <option{% if configuracion and configuracion.impuesto_defecto == '3% IGIC' %} selected{% endif %}>3% IGIC</option>
+                            <option{% if configuracion and configuracion.impuesto_defecto == '7% IGIC' %} selected{% endif %}>7% IGIC</option>
+                            <option{% if configuracion and configuracion.impuesto_defecto == '9% IGIC' %} selected{% endif %}>9% IGIC</option>
+                            <option{% if configuracion and configuracion.impuesto_defecto == '13% IGIC' %} selected{% endif %}>13% IGIC</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="section-column compact" style="display: none;">
+                    <div class="field-group checkbox-line">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="recargo_equivalencia_default" {% if configuracion and configuracion.recargo_equivalencia_default %}checked{% endif %} />
+                            Aplicar recargo de equivalencia por defecto
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="full-width-container">
+                <div class="field-group full-width-block">
+                    <label>Nota legal / Texto de exención de impuestos</label>
+                    <textarea 
+                        name="nota_legal" 
+                        rows="6" 
+                        class="config-textarea"
+                        placeholder="Ej: Factura exenta de IVA según el artículo 20 de la Ley 37/1992..."
+                    >{% if configuracion and configuracion.nota_legal and configuracion.nota_legal|string != 'None' %}{{ configuracion.nota_legal }}{% endif %}</textarea>
+                    <div class="note custom-muted-text">
+                        Este texto aparecerá de forma automática en el pie de tus facturas y presupuestos.
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="config-fieldset">
+    <legend class="config-legend">Configuración Veri*Factu</legend>
+    
+    <div class="verifactu-flex-layout">
+        <div class="verifactu-column-main">
+            <div class="field-group max-width-input">
+                <label class="font-semibold-label">Certificado Digital (.p12 / .pfx)</label>
+                <input type="file" name="certificado_p12" accept=".p12,.pfx" />
+                
+                {% if configuracion and configuracion.ruta_certificado %}
+                    <div class="note verifactu-success-msg">
+                        ✅ Certificado configurado: <code>{{ configuracion.ruta_certificado }}</code>
+                    </div>
+                {% else %}
+                    <div class="note verifactu-danger-msg">
+                        ❌ No se ha subido ningún certificado de firma.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="verifactu-column-side">
+            <p class="note info-note-box">
+                Este certificado se guardará en la carpeta segura <code>certs/</code> y se utilizará para firmar los envíos a la AEAT. 
+                La contraseña se le solicitará en cada emisión de factura: 
+                <strong>la aplicación no almacena la contraseña del certificado en ningún momento</strong> 
+                (ni en la base de datos, ni en disco, ni en ningún otro lugar), por lo que deberás introducirla cada vez.
+            </p>
+        </div>
+    </div>
+    
+    
+</fieldset>
+
+        <fieldset class="config-fieldset">
+            <legend class="config-legend">Gestión de Métodos de Pago</legend>
+            
+            <table class="data-table config-table-margin">
+                <thead>
+                    <tr><th>Nombre</th><th>Tipo</th><th>Entidad</th><th>IBAN / Cuenta</th><th>Acciones</th></tr>
+                </thead>
+                <tbody>
+                    {% for mp in metodos_pago %}
+                    <tr>
+                        <td data-label="Nombre"><strong>{{ mp.nombre }}</strong></td>
+                        <td data-label="Tipo">{{ mp.tipo }}</td>
+                        <td data-label="Entidad">{{ mp.entidad or '-' }}</td>
+                        <td data-label="IBAN / Cuenta">{{ mp.cuenta_iban or '-' }}</td>
+                        <td data-label="Acciones">
+                            <button type="submit" name="action" value="delete_metodo_pago" onclick="this.form.mp_id.value='{{ mp.id }}'" class="button danger small">Eliminar</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <input type="hidden" name="mp_id" value="">
+
+            <h3 class="config-subheading">Añadir nuevo método de pago</h3>
+            
+            <div class="section-row">
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Nombre descriptivo*</label>
+                        <input type="text" name="mp_nombre" placeholder="Ej: Cuenta Principal Santander" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Tipo*</label>
+                        <select name="mp_tipo">
+                            <option value="Transferencia">Transferencia bancaria</option>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Entidad Bancaria</label>
+                        <input type="text" name="mp_entidad" placeholder="Ej: Banco Santander" />
+                    </div>
+                </div>
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>IBAN / Nº Cuenta</label>
+                        <input type="text" name="mp_iban" placeholder="ES00 0000..." />
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions row-top-gap">
+                <button type="submit" name="action" value="add_metodo_pago" class="button secondary">Crear método de pago</button>
+            </div>
+        </fieldset>
+
+        <fieldset class="config-fieldset">
+            <legend class="config-legend">Seguridad de la Cuenta</legend>
+            
+            <p class="note custom-muted-text margin-bottom-gap">
+                Modifica las credenciales de acceso para el usuario actualmente activo: <strong>{{ session['username'] }}</strong>
+            </p>
+            
+            <div class="section-row">
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Contraseña Actual</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="password_actual" name="password_actual" placeholder="Contraseña" class="password-input-field" />
+                            <button type="button" onclick="togglePassword('password_actual', this); return false;" class="password-toggle-btn">
+                                👁️‍🗨️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Nueva Contraseña</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="password_nueva" name="password_nueva" minlength="6" placeholder="Mínimo 6 caracteres" class="password-input-field" />
+                            <button type="button" onclick="togglePassword('password_nueva', this); return false;" class="password-toggle-btn">
+                                👁️‍🗨️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-column">
+                    <div class="field-group">
+                        <label>Confirmar Nueva Contraseña</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="password_confirmar" name="password_confirmar" minlength="6" placeholder="Repite la contraseña" class="password-input-field" />
+                            <button type="button" onclick="togglePassword('password_confirmar', this); return false;" class="password-toggle-btn">
+                                👁️‍🗨️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions row-top-gap">
+                <button type="submit" name="action" value="cambiar_password" class="button secondary">Actualizar Contraseña</button>
+            </div>
+        </fieldset>
+
+    
+    
+
+
+<fieldset class="config-fieldset">
+    <legend class="config-legend">Copias de Seguridad y Respaldo</legend>
+    
+    <p class="note custom-muted-text backup-intro-text">
+        Configura el destino de las copias de seguridad de tu base de datos relacional <code>facturacion_db</code>. Todos los archivos exportados se cifran localmente con el estándar AES-256 antes de ser transmitidos.
+    </p>
+
+    <div class="section-row backup-stats-container">
+        <div class="backup-stat-card status-success">
+            <small class="stat-label">Último Backup Realizado</small>
+            <strong id="lbl-ultimo-backup" class="stat-value">
+                {{ ultimo_backup or 'Nunca ejecutado' }}
+            </strong>
+        </div>
+        <div class="backup-stat-card status-info">
+            <small class="stat-label">Simulacro de Restauración (Sandbox)</small>
+            <strong class="stat-value highlight-blue">
+                ✅ Verificado Semanalmente
+            </strong>
+        </div>
+    </div>
+
+    <div class="backup-vertical-flow">
+        
+        <!-- PASO 1: ALMACENAMIENTO LOCAL -->
+        <div class="backup-step-card">
+            <div class="backup-step-header">
+                <span class="backup-step-badge">Backup - 1</span>
+                <h4 class="backup-step-title">Almacenamiento Local de Respaldo</h4>
+            </div>
+            <div class="backup-step-body">
+                <p class="zone-description-text" style="margin-bottom: 12px;">
+                    Antes de enviar tus datos fuera de la red local, el sistema guarda una copia de seguridad empaquetada y cifrada en el disco duro de este ordenador o servidor.
+                </p>
+                <div class="user-guide-box" style="background-color: rgba(0,0,0,0.02); border: 1px dashed var(--border); padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.88rem;">
+                    <strong>¿Cómo configurar esto de forma sencilla?</strong>
+                    <ol style="margin: 6px 0 0 18px; padding: 0; color: var(--muted);">
+                        <li>Abre el <strong>Explorador de archivos</strong> de tu sistema y crea una carpeta nueva para las copias de seguridad (ej: <code>MisBackupsFacturas</code>).</li>
+                        <li>Haz clic secundario sobre la carpeta y selecciona <strong>"Copiar como ruta de acceso"</strong> (o haz clic en la barra superior de direcciones y copia el texto).</li>
+                        <li>Pégala en el recuadro de abajo y pulsa el botón para comprobar que el programa puede escribir en ella.</li>
+                    </ol>
+                </div>
+                
+                <div class="field-group">
+                    <label for="ruta_local_destino">Directorio de Copias de Seguridad (Servidor Local)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="ruta_local_destino" name="ruta_local_destino" 
+                            value="{{ config_backup.ruta_local_destino if config_backup else '' }}" 
+                            placeholder="Ej: C:\BackupsAutoFactura" style="flex: 1;" />
+                        <button type="button" class="button secondary" onclick="validarRutaServidor()">Validar Carpeta</button>
+                    </div>
+                    
+                    {% if config_backup and config_backup.ruta_local_destino %}
+                    <div style="margin-top: 8px; padding: 8px 12px;  border: solid 1px; border-left: 4px solid #38a169; color: #30b477; font-size: 0.85rem;  border-radius: 4px; display: flex; align-items: center; gap: 6px;">
+                        <span>🟢 <strong>Ruta activa y guardada:</strong> {{ config_backup.ruta_local_destino }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Banner informativo de sincronización reactivo y adaptativo -->
+                <div id="aviso-ruta-previa" class="alert alert-warning" style="display: none; margin-bottom: 15px;">
+                    <!-- El contenido se inyecta dinámicamente por JavaScript -->
+                </div>
+
+                <!-- VISUALIZADOR DE LA CLAVE CRIPTOGRÁFICA ACTUAL (Añadir en la zona de configuración de backups) -->
+                <div class="contenedor-critico-backup">
+                    <label style="font-weight: bold; color: #dc2626; display: flex; align-items: center; gap: 6px; font-size: 0.95rem;">
+                        🛑 ¡ATENCIÓN, MUY IMPORTANTE! Clave Maestra de Descifrado de Copias de Seguridad
+                    </label>
+                    
+                    <p class="texto-advertencia-backup">
+                        Esta clave simétrica es el <strong>único mecanismo existente</strong> para desencriptar tus copias de seguridad. 
+                        Se generó automáticamente la <strong>primera vez que ejecutaste la aplicación</strong> y es única para esta instalación: 
+                        si en el futuro instalas la aplicación de nuevo (en otro equipo, otra carpeta, u otro servidor), 
+                        se generará <strong>una clave distinta</strong>, y esa nueva clave <strong>no podrá desencriptar los backups creados con la clave original</strong>. 
+                        Las bases de datos se respaldan de forma totalmente inmutable y cifrada; si esta clave se pierde, se corrompe, 
+                        o se sustituye por la de otra instalación, <strong>será absolutamente imposible recuperar tus datos o restaurar el sistema</strong> 
+                        en caso de fallo catastrófico. <strong>Cópiala y guárdala</strong> inmediatamente en un gestor de credenciales seguro 
+                        o en un almacenamiento físico aislado, y consérvala junto con tus copias de seguridad, no solo en la instalación original.
+                    </p>
+                    
+                    <!-- Bloque de terminal invariable para la clave del .env, con fondo oscuro e idéntico a tus cajas de texto -->
+                    <blockquote expandable style="margin: 0; padding: 12px; background: #090d16; color: #f59e0b; border-left: 4px solid #dc2626; border-radius: 4px; font-family: monospace; font-size: 0.9rem; overflow-x: auto; letter-spacing: 0.5px;">
+                        <code>{{ clave_fernet_env if clave_fernet_env else 'Generando clave en el próximo backup...' }}</code>
+                    </blockquote>
+                </div>
+
+                <div style="margin-top: 25px;">
+                    <h4 style="font-size: 0.95rem; color: #2259ac; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                        Archivos Cifrados Disponibles en Servidor
+                    </h4>
+
+                    <div id="contenedor-lista-backups">
+                        {% include 'partials/_tabla_backups.html' %}
+                    </div>
+
+
+                   
+                </div>
+            </div>
+        </div>
+
+        <!-- PASO 2: REDUNDANCIA EXTERNA (SOLO SFTP) -->
+        <div class="backup-step-card">
+            <div class="backup-step-header">
+                <span class="backup-step-badge">Backup - 2</span>
+                <h4 class="backup-step-title">Destino de Redundancia Externa</h4>
+            </div>
+            <div class="backup-step-body">
+                <p class="zone-description-text">Duplica de forma segura tus datos fuera de tu almacenamiento local primario para prevenir pérdidas ante desastres físicos.</p>
+                
+                <div class="field-group">
+                    <label>Selecciona el Destino Externo</label>
+                    <select name="proveedor" id="selector-proveedor" onchange="toggleFormularioProveedor()">
+                        <option value="LOCAL" {% if not config_backup or config_backup.proveedor == 'LOCAL' %}selected{% endif %}>Ninguno (Solo Almacenamiento Local)</option>
+                        <option value="SFTP" {% if config_backup and config_backup.proveedor == 'SFTP' %}selected{% endif %}>Servidor SFTP Privado / NAS Local</option>
+                    </select>
+                </div>
+
+                <div id="wrapper-dinamico-proveedor" class="provider-integrated-wrapper dynamic-hidden">
+                    
+                    <!-- Formulario exclusivo de SFTP -->
+                    <div id="wrapper-creds-sftp" class="provider-credentials-box provider-box-muted dynamic-hidden">
+                        <div class="section-row margin-bottom-sm no-padding">
+                            <div class="section-column flex-expand-2">
+                                <div class="field-group no-margin">
+                                    <label>Dirección del Host o Servidor IP</label>
+                                    <input type="text" name="sftp_host" placeholder="ej. sftp.miempresa.com o 192.168.1.100" value="{{ config_backup.sftp_host or '' }}" />
+                                </div>
+                            </div>
+                            <div class="section-column flex-compact-port">
+                                <div class="field-group no-margin">
+                                    <label>Puerto</label>
+                                    <input type="number" name="sftp_port" value="{{ config_backup.sftp_port or 22 }}" />
+                                </div>
+                            </div>
+                            <div class="section-column flex-expand-1">
+                                <div class="field-group no-margin">
+                                    <label>Usuario SSH/SFTP</label>
+                                    <input type="text" name="sftp_user" placeholder="backup_user" value="{{ config_backup.sftp_user or '' }}" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="field-group no-margin margin-top-md">
+                            <label>Seguridad Asimétrica sin Contraseñas</label>
+                            <div class="ssh-actions-flex">
+                                <button type="button" class="button secondary button-small" onclick="generarClaveSshAsincrona()">
+                                    Generar Clave Privada y Mostrar Pública
+                                </button>
+                                <span class="note custom-muted-text no-margin">Evita registrar claves introduciendo la llave pública directamente en tu servidor destino.</span>
+                            </div>
+                            <textarea id="ssh-public-key-display" rows="3" readonly class="ssh-key-textarea" placeholder="Tu clave SSH aparecerá aquí..."></textarea>
+                        </div>
+                    </div>
+
+                </div> 
+            </div>
+        </div>
+
+    </div> 
+    
+    <div class="section-row backup-footer-row margin-top-lg">
+        <div class="section-column">
+            <div class="field-group no-margin">
+                <label>Frecuencia de Automatización</label>
+                <select name="frecuencia_cron" class="select-frecuencia">
+                    <option value="HOURLY" {% if config_backup.frecuencia_cron == 'HOURLY' %}selected{% endif %}>Cada Hora de forma síncrona</option>
+                    <option value="DAILY" {% if not config_backup or config_backup.frecuencia_cron == 'DAILY' %}selected{% endif %}>Diario (Madrugada, 03:00 AM)</option>
+                    <option value="WEEKLY" {% if config_backup.frecuencia_cron == 'WEEKLY' %}selected{% endif %}>Semanal (Domingos noche)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="section-column footer-btn-align">
+            <div class="field-group no-margin full-width">
+                <button type="button" id="btn-ejecutar-backup" class="button secondary btn-manual-backup" style="background-color: #ed8936; color: white; border: none;" onclick="dispararBackupAsincrono()">
+                    🚀 Ejecutar Backup Manual Ahora
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <input type="hidden" name="backup_action_flag" value="save_settings">
+</fieldset>
+
+
+<div class="form-actions">
+    <button type="submit" class="button primary">Guardar configuración</button>
+</div>
+</section>
+
+    
+</form>
+
+
+
+<!-- MODAL DE RESTAURACIÓN CON ADAPTACIÓN MODO OSCURO (Corregido para tu style.css) -->
+<div id="modal-restaurar-backup" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+    <!-- Cambiado a var(--surface) para el fondo de la tarjeta del modal -->
+    <div style="background: var(--surface, #ffffff); color: var(--text, #2d3748); padding: 25px; border-radius: 6px; width: 100%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border-top: 5px solid #e53e3e;">
+        <h3 style="margin-top: 0; color: #e53e3e; display: flex; align-items: center; gap: 8px; font-size: 1.25rem;">
+            ⚠️ Confirmar Restauración de Base de Datos
+        </h3>
+        <p style="font-size: 0.88rem; color: var(--muted, #718096); margin: 10px 0; line-height: 1.4;">
+            Estás a punto de reemplazar la base de datos relacional activa. Esta acción es irreversible. Se verificará la consistencia del archivo en el Sandbox aislado antes de su volcado definitivo.
+        </p>
+        
+        <form action="{{ url_for('config.restaurar_backup_controlado') }}" method="POST" style="margin-top: 15px;">
+            <input type="hidden" id="modal-nombre-archivo" name="nombre_archivo" value="">
+            
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: var(--text);">Archivo Seleccionado:</label>
+                <!-- Cambiado a var(--bg) para el fondo del input deshabilitado -->
+                <input type="text" id="modal-display-archivo" readonly style="background-color: var(--bg, #edf2f7); border: 1px solid var(--border, #cbd5e0); font-family: monospace; font-size: 0.85rem; width: 100%; padding: 8px; border-radius: 4px; color: #cf8719;" />
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: var(--text);">Clave de Descifrado Criptográfico (Fernet Key)*</label>
+                <div style="position: relative; display: flex; align-items: center;">
+                    <!-- Cambiado a var(--bg-input) para el fondo del input de la contraseña -->
+                    <input type="password" id="modal-secret-key" name="secret_key" required placeholder="Introduce la clave maestra simétrica" style="width: 100%; padding: 8px 35px 8px 8px; border: 1px solid var(--border, #cbd5e0); border-radius: 4px; background: var(--bg-input, #fff); color: var(--text);" />
+                    <button type="button" onclick="toggleVisibilidadClave()" style="position: absolute; right: 8px; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 1.1rem; padding: 0;">👁️</button>
+                </div>
+                <small style="color: var(--muted, #a0aec0); font-size: 0.8rem; margin-top: 4px; display: block;">
+                    La clave requerida es la firma generada en el despliegue del sistema (32 bytes Base64).
+                </small>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <!-- Cambiado el botón secundario para usar tus clases nativas sin estilos inline incompatibles -->
+                <button type="button" class="button secondary" style="padding: 8px 12px; border-radius: 4px; cursor: pointer;" onclick="cerrarModalRestaurar()">Cancelar</button>
+                <button type="submit" class="button danger" style="background-color: #e53e3e; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    Confirmar e Inyectar Datos
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function togglePassword(inputId, btn) {
+    const inputField = document.getElementById(inputId);
+    if (inputField.type === "password") {
+        inputField.type = "text";
+        btn.textContent = "👁️"; 
+    } else {
+        inputField.type = "password";
+        btn.textContent = "👁️‍🗨️";  
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Seleccionamos el formulario de configuración
+    const form = document.querySelector('form[method="post"]');
+    
+    if (form) {
+        form.addEventListener('keydown', function(e) {
+            // Si la tecla pulsada es Enter (código 13)
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                const target = e.target;
+                
+                // Permitimos el comportamiento normal en botones y áreas de texto
+                if (target.tagName === 'BUTTON' || target.type === 'submit' || target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                
+                // Evitamos que el formulario se envíe automáticamente
+                e.preventDefault();
+                
+                // Buscamos todos los elementos en los que se puede hacer foco dentro del formulario
+                const formElements = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([disabled]), select, textarea, button'));
+                const index = formElements.indexOf(target);
+                
+                if (index > -1 && index < formElements.length - 1) {
+                    // Calculamos el siguiente elemento disponible para hacer foco
+                    let nextElement = formElements[index + 1];
+                    
+                    // Si el siguiente es un botón de acción intermedio, saltamos al que le sigue
+                    if (nextElement.tagName === 'BUTTON' && !nextElement.classList.contains('primary')) {
+                        nextElement = formElements[index + 2] || nextElement;
+                    }
+                    
+                    if (nextElement) {
+                        nextElement.focus();
+                    }
+                }
+            }
+        });
+    }
+});
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Evitar el envío tradicional del método de pago y usar AJAX
+    const btnAddMP = document.querySelector('button[name="action"][value="add_metodo_pago"]');
+    if (btnAddMP) {
+        btnAddMP.addEventListener('click', function(e) {
+            e.preventDefault(); // Evita que la página se recargue
+
+            // Recogemos los datos estrictamente del método de pago
+            const mpNombre = document.querySelector('input[name="mp_nombre"]').value;
+            const mpTipo = document.querySelector('select[name="mp_tipo"]').value;
+            const mpEntidad = document.querySelector('input[name="mp_entidad"]').value;
+            const mpIban = document.querySelector('input[name="mp_iban"]').value;
+
+            if (!mpNombre || !mpTipo) {
+                alert('El nombre descriptivo y el tipo son obligatorios.');
+                return;
+            }
+
+            // Enviamos la petición por AJAX a la URL secundaria que ya procesa esto
+            $.ajax({
+                url: "{{ url_for('config.metodo_pago_nuevo') }}",
+                method: "POST",
+                data: {
+                    mp_nombre: mpNombre,
+                    mp_tipo: mpTipo,
+                    mp_entidad: mpEntidad,
+                    mp_iban: mpIban
+                },
+                success: function(response) {
+                    // Al guardarse correctamente, añadimos el nuevo elemento a la tabla dinámicamente
+                    const tablaBody = document.querySelector('.panel-table tbody'); 
+                    
+                    if (tablaBody) {
+                        const nuevaFila = document.createElement('tr');
+                        nuevaFila.innerHTML = `
+                            <td data-label="Nombre"><strong>${mpNombre}</strong></td>
+                            <td data-label="Tipo"><span class="badge">${mpTipo}</span></td>
+                            <td data-label="Entidad">${mpEntidad || '-'}</td>
+                            <td data-label="IBAN / Cuenta"><code>${mpIban || '-'}</code></td>
+                            <td data-label="Acciones">
+                                <form method="post" style="display:inline;">
+                                    <input type="hidden" name="mp_id" value="${response.id}">
+                                    <button type="submit" name="action" value="delete_metodo_pago" class="small-button text-danger" onclick="return confirm('¿Eliminar método de pago?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        `;
+                        tablaBody.appendChild(nuevaFila);
+                    }
+
+                    // Limpiamos los inputs del método de pago para poder escribir otro
+                    document.querySelector('input[name="mp_nombre"]').value = '';
+                    document.querySelector('input[name="mp_entidad"]').value = '';
+                    document.querySelector('input[name="mp_iban"]').value = '';
+                    
+                    alert('Método de pago agregado correctamente.');
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON ? xhr.responseJSON.error : 'Error al guardar';
+                    alert(errorMsg);
+                }
+            });
+        });
+    }
+});
+
+function toggleFormularioProveedor() {
+    const selector = document.getElementById('selector-proveedor');
+    if (!selector) return;
+
+    const proveedorActivo = selector.value;
+    const contenedorPadre = document.getElementById('wrapper-dinamico-proveedor');
+    const contenedorSftp = document.getElementById('wrapper-creds-sftp');
+
+    // 1. Limpiamos el estado ocultando el sub-bloque de SFTP por defecto
+    if (contenedorSftp) contenedorSftp.classList.add('dynamic-hidden');
+    
+    // 2. Controlar el contenedor padre según la selección
+    if (contenedorPadre) {
+        if (proveedorActivo === 'LOCAL') {
+            contenedorPadre.classList.add('dynamic-hidden');
+            return; // Si es local, no mostramos nada más y salimos
+        } else {
+            contenedorPadre.classList.remove('dynamic-hidden');
+        }
+    }
+    
+    // 3. Si el proveedor activo es SFTP, mostramos sus campos dedicados
+    if (proveedorActivo === 'SFTP' && contenedorSftp) {
+        contenedorSftp.classList.remove('dynamic-hidden');
+    }
+}
+
+// Ejecutar al vuelo tras la inicialización del DOM para respetar estados guardados en SQLite
+document.addEventListener("DOMContentLoaded", function() {
+    toggleFormularioProveedor();
+});
+
+function dispararBackupAsincrono() {
+    const botonBackup = document.getElementById('btn-ejecutar-backup');
+    if (!botonBackup) return;
+
+    const rutaInput = document.getElementById('ruta_local_destino');
+    const ruta = rutaInput ? rutaInput.value.trim() : '';
+
+    // CAPTURAMOS EL PROVEEDOR Y EL TOKEN ACTUAL DE LA UI
+    const selectorProveedor = document.getElementById('selector-proveedor');
+    const proveedor = selectorProveedor ? selectorProveedor.value : 'LOCAL';
+
+    if (!ruta) {
+        alert("⚠️ Por favor, introduce y valida una ruta de carpeta antes de ejecutar el backup.");
+        return;
+    }
+
+    const textoOriginal = botonBackup.innerText;
+    botonBackup.disabled = true;
+    botonBackup.innerText = "⏳ Procesando Respaldo...";
+
+    // Enviamos TODO el pack al backend
+    fetch("/configuracion/backups/ejecutar-manual", {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ 
+            ruta_local: ruta,
+            proveedor: proveedor
+        })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("Fallo en la respuesta del servidor (Status: " + res.status + ")");
+        return res.json();
+    })
+    .then(data => {
+        if (data.status === "success") {
+            alert("🟢 ¡Éxito! Copia de seguridad guardada en local.");
+            actualizarTablaBackups();
+
+            const lblTimestamp = document.getElementById('lbl-ultimo-backup');
+            if (lblTimestamp) lblTimestamp.innerText = data.timestamp;
+        } else {
+            alert("🔴 Fallo crítico en el sistema de copias: " + data.error);
+        }
+    })
+    .catch(err => {
+        alert("Error de comunicación de red: " + err.message);
+    })
+    .finally(() => {
+        botonBackup.disabled = false;
+        botonBackup.innerText = textoOriginal;
+    });
+}
+
+function actualizarTablaBackups() {
+    const inputRuta = document.getElementById('ruta_local_destino') || document.getElementsByName('ruta_local_destino')[0];
+    let url = "{{ url_for('config.tabla_backups_parcial') }}";
+    
+    let avisoPrevio = document.getElementById('aviso-ruta-previa');
+    const rutaActual = inputRuta ? inputRuta.value.trim() : "";
+    
+    if (rutaActual !== "") {
+        url += "?ruta_dinamica=" + encodeURIComponent(rutaActual);
+        
+        if (avisoPrevio) {
+            avisoPrevio.style.display = 'block';
+            // Mantenemos la inyección limpia usando estilos heredados coherentes con tu CSS
+            avisoPrevio.innerHTML = `📂 <strong>Vista previa temporal:</strong> Escaneando archivos en <code style="background: rgba(0, 0, 0, 0.08); padding: 2px 6px; border-radius: 4px; font-family: monospace; color: inherit;">${rutaActual}</code>. Recuerda pulsar en <em>Guardar Configuración</em> para aplicar de forma permanente.`;
+        }
+    } else {
+        // Si borran la ruta por completo, escondemos el aviso
+        if (avisoPrevio) avisoPrevio.style.display = 'none';
+    }
+
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            const contenedor = document.getElementById('contenedor-lista-backups');
+            if (contenedor) {
+                // CORRECCIÓN CLAVE: Inyectamos DENTRO del nodo sin destruir el contenedor primario
+                contenedor.innerHTML = html;
+            }
+        })
+        .catch(err => console.error("Error al sincronizar el almacenamiento de backups:", err));
+}
+
+// Inicialización de escuchas reactivas
+document.addEventListener("DOMContentLoaded", function() {
+    const inputRuta = document.getElementById('ruta_local_destino') || document.getElementsByName('ruta_local_destino')[0];
+    
+    if (inputRuta) {
+        // Evento 'input': Reacciona al escribir, borrar o pegar carácter a carácter
+        inputRuta.addEventListener('input', debounce(function() {
+            actualizarTablaBackups();
+        }, 400)); // 400ms de espera tras la última pulsación para no saturar Waitress
+        
+        // Evento 'change': Asegura la actualización en caso de perder el foco bruscamente
+        inputRuta.addEventListener('change', function() {
+            actualizarTablaBackups();
+        });
+    }
+});
+
+// Función auxiliar Debounce para controlar ráfagas de teclado
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+function generarClaveSshAsincrona() {
+    const areaTexto = document.getElementById('ssh-public-key-display');
+    
+    fetch("{{ url_for('config.generar_llaves_sftp') }}", { method: "POST" })
+    .then(res => res.json())
+    .then(data => {
+        if (data.public_key) {
+            areaTexto.value = data.public_key;
+            areaTexto.style.display = 'block';
+            areaTexto.select();
+            alert("Llave RSA-4096 / ED25519 generada de forma segura. Cópiala y añádela a tu archivo authorized_keys.");
+        } else {
+            alert("Error al inicializar el entorno criptográfico SSH.");
+        }
+    });
+}
+
+function validarRutaServidor() {
+    const rutaInput = document.getElementById('ruta_local_destino');
+    if (!rutaInput) return;
+    
+    const ruta = rutaInput.value;
+    if (!ruta.trim()) {
+        alert("Por favor, introduce una ruta primero.");
+        return;
+    }
+
+    // Petición al backend para verificar que la carpeta existe y es escribible
+    fetch("{{ url_for('config.validar_ruta_backup') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ruta_local: ruta })
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error("Error en la respuesta del servidor (Status: " + res.status + ")");
+        }
+        return res.json();
+    })
+    .then(data => {
+        if (data.valido) {
+            alert("🟢 ¡Acceso Confirmado! El servidor puede leer y escribir archivos en esta ruta de destino.");
+        } else {
+            alert("🔴 Error en la ruta local: " + data.error);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Error al intentar conectar con el validador del backend: " + err.message);
+    });
+}
+
+// Funciones globales para controlar el flujo del Modal de Restauración
+function abrirModalRestaurar(nombreArchivo) {
+    const modal = document.getElementById('modal-restaurar-backup');
+    const inputNombre = document.getElementById('modal-nombre-archivo');
+    const inputDisplay = document.getElementById('modal-display-archivo');
+    if (modal && inputNombre && inputDisplay) {
+        inputNombre.value = nombreArchivo;
+        inputDisplay.value = nombreArchivo;
+        modal.style.display = 'flex';
+    }
+}
+
+function cerrarModalRestaurar() {
+    const modal = document.getElementById('modal-restaurar-backup');
+    if (modal) modal.style.display = 'none';
+}
+
+function toggleVisibilidadClave() {
+    const inputClave = document.getElementById('modal-secret-key');
+    if (inputClave) {
+        inputClave.type = inputClave.type === 'password' ? 'text' : 'password';
+    }
+}
+
+</script>
+{% endblock %}
