@@ -205,12 +205,17 @@
     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h2 style="margin: 0;">Vista previa de la factura</h2>
         <div class="button-group">
-            
             <button type="button" id="downloadPreviewBtn" class="button secondary small">Descargar PDF</button>
             <button type="button" class="button secondary small" onclick="document.getElementById('previewContainer').style.display='none'">Cerrar</button>
         </div>
     </div>
-    <iframe id="previewIframe" style="width: 100%; height: 800px; border: 1px solid #ddd; border-radius: 4px; margin-top: 1rem;"></iframe>
+    <!-- Cambiamos iframe por object para que el navegador use su visor nativo sin forzar la descarga -->
+    <object id="previewObject" type="application/pdf" style="width: 100%; height: 800px; border: 1px solid #ddd; border-radius: 4px; margin-top: 1rem;">
+        <p style="padding: 1rem; text-align: center;">
+            Tu navegador no puede renderizar el PDF directamente. 
+            <a id="fallbackDownloadLink" href="#" download="Factura.pdf">Haz clic aquí para descargarlo</a>.
+        </p>
+    </object>
 </section>
 
 </form>
@@ -464,7 +469,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPreviewUrl = null;
 
     function buildPreview() {
-        // Ejecutamos directamente el flujo asíncrono para el botón sin anidar listeners globales en el document
         async function ejecutarPrevisualizacion() {
             const contactoSelectInterno = document.querySelector('select[name="contacto_id"]');
             if (!contactoSelectInterno || !contactoSelectInterno.value) {
@@ -485,14 +489,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 if (response.ok) {
-                    const blob = await response.blob();
-                    if (currentPreviewUrl) window.URL.revokeObjectURL(currentPreviewUrl);
-                    currentPreviewUrl = window.URL.createObjectURL(blob);
-                    
-                    const previewIframe = document.getElementById('previewIframe');
-                    previewIframe.src = currentPreviewUrl + '#toolbar=1&navpanes=0&scrollbar=1';
-                    document.getElementById('previewContainer').style.display = 'block';
-                    document.getElementById('previewContainer').scrollIntoView({ behavior: 'smooth' });
+                    const jsonResponse = await response.json();
+                    if (jsonResponse.success && jsonResponse.pdf_data) {
+                        const previewObject = document.getElementById('previewObject');
+                        const downloadBtn = document.getElementById('downloadPreviewBtn');
+                        const fallbackLink = document.getElementById('fallbackDownloadLink');
+                        const previewContainer = document.getElementById('previewContainer');
+
+                        // Generamos un nombre de archivo limpio y amigable
+                        const numFactura = jsonResponse.numero_factura || 'Borrador';
+                        const nomCliente = (jsonResponse.nombre_cliente || 'Cliente')
+                            .replace(/[/\\?%*:|"<>\s]+/g, '_'); // Sanitiza caracteres inválidos para archivos
+                        const nombreArchivo = `Factura_${numFactura}_${nomCliente}.pdf`;
+
+                        // 1. Cargamos el PDF en el visor nativo incrustado
+                        previewObject.setAttribute('data', jsonResponse.pdf_data);
+                        
+                        // 2. Configuramos el enlace de emergencia por si el navegador no soporta PDFs incrustados
+                        if (fallbackLink) {
+                            fallbackLink.href = jsonResponse.pdf_data;
+                            fallbackLink.download = nombreArchivo;
+                        }
+
+                        // 3. Asignamos la acción de descarga real al botón superior con el nuevo nombre
+                        if (downloadBtn) {
+                            downloadBtn.onclick = function() {
+                                const link = document.createElement('a');
+                                link.href = jsonResponse.pdf_data;
+                                link.download = nombreArchivo;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            };
+                        }
+                        
+                        // 4. Mostramos el contenedor con scroll suave
+                        previewContainer.style.display = 'block';
+                        previewContainer.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        alert('No se pudo generar la estructura de previsualización correctamente.');
+                    }
                 } else {
                     const errorText = await response.text();
                     console.error("Error de validación:", errorText);

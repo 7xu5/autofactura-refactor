@@ -23,7 +23,7 @@ class VerifactuOrchestrator:
         """
         print(f"DEBUG: Iniciando proceso Veri*Factu para factura_id: {factura_id}")
         
-        # 🚨 CRUCIAL: Fijar el timestamp exacto del evento de generación AQUÍ.
+        # Fija el timestamp exacto del evento de generación.
         # Esta única variable sincronizará el String del Hash, el XML y la Base de Datos.
         timestamp_unico = datetime.now().replace(microsecond=0)
 
