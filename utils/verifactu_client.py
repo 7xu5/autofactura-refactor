@@ -14,8 +14,8 @@ class VerifactuClient:
     
     # Endpoints Oficiales de la AEAT (Entorno Sandbox / Pruebas de Veri*Factu)
 
-    URL_ENDPOINT = "https://www1.agenciatributaria.gob.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" 
-    # servidor de pruebasURL_ENDPOINT = "https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" # server de pruebas
+    # servidor oficial URL_ENDPOINT = "https://www1.agenciatributaria.gob.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" 
+    URL_ENDPOINT = "https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" # server de pruebas
 
     @staticmethod
     def _preparar_contexto_mtls(ruta_p12: str, contraseña_p12: str) -> Tuple[Any, str]:

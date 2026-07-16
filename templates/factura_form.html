@@ -389,13 +389,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Detectamos si la factura actual es Rectificativa usando JavaScript puro
     const numeroFacturaInput = document.querySelector('input[name="numero_factura"]');
-    const esRectificativa = (numeroFacturaInput && numeroFacturaInput.value.includes('RECT')) || 
-                            "{{ factura.tipo_factura if factura else '' }}" === "Rectificativa";
+    const esRectificativa = (numeroFacturaInput && (
+                            numeroFacturaInput.value.includes('RECT') || 
+                            numeroFacturaInput.value.includes('B-R')
+                        )) || "{{ factura.tipo_factura if factura else '' }}" === "Rectificativa";
 
     function calculateTotals() {
+
+        // --- NUEVA DETECCIÓN DE RECTIFICATIVA ---
+        const numeroFacturaInput = document.getElementById('id_numero_factura') || document.querySelector('[name="numero_factura"]');
+        const esRectificativa = (numeroFacturaInput && (
+                                    numeroFacturaInput.value.includes('RECT') || 
+                                    numeroFacturaInput.value.includes('B-R')
+                                )) || "{{ factura.tipo_factura if factura else '' }}" === "Rectificativa";
+        // ----------------------------------------
+        
         let baseTotal = 0;
         let ivaTotal = 0;
         let totalGeneral = 0;
+
+        
 
         // Buscamos todos los inputs de concepto para identificar cada fila de artículo
         const conceptoInputs = document.querySelectorAll('#lineItemsBody input[name^="concepto_"]');

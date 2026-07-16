@@ -202,7 +202,7 @@ class VerifactuXmlBuilder:
         sistema = ET.SubElement(alta, _si("SistemaInformatico"))
         cls._sub(sistema, _si("NombreRazon"),          config.nombre_empresa)
         cls._sub(sistema, _si("NIF"),                  config.cif_nif)
-        cls._sub(sistema, _si("NombreSistemaInformatico"), "AutoFactura-V8")
+        cls._sub(sistema, _si("NombreSistemaInformatico"), "AutoFactura-V9")
         cls._sub(sistema, _si("IdSistemaInformatico"), "01")
         cls._sub(sistema, _si("Version"),              "1.0")
         cls._sub(sistema, _si("NumeroInstalacion"),    "001")
