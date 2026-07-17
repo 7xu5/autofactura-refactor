@@ -82,8 +82,10 @@ class InvoiceFormService:
             else:
                 numero_factura = form_num
         else:
-            if not form_num or form_num.startswith('BORR'):
-                numero_factura = generate_draft_number() if es_borrador else generate_invoice_number()
+            if es_borrador:
+                numero_factura = generate_draft_number()
+            elif not form_num or form_num.startswith('BORR') or form_num.startswith('B-'):
+                numero_factura = generate_invoice_number()
             else:
                 numero_factura = form_num
 

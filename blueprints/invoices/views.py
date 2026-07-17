@@ -60,19 +60,17 @@ def factura_crear():
         factura, ctx_error, error = InvoiceFormService.procesar_guardado_factura(request.form)
         if error and ctx_error:
             flash(error, 'danger')
-            # CORRECCIÓN: Nombre de plantilla correcto
             return render_template('factura_form.html', **ctx_error)
         
         db.session.commit()
         flash('Factura creada correctamente.', 'success')
-        return redirect(url_for('invoices.factura_editar', id=factura.id) if factura else url_for('invoices.facturas'))
+        # AL CAMBIAR ESTO: Fuerza el regreso al listado en lugar de ir a editar
+        return redirect(url_for('invoices.facturas'))
 
     # GET: Renderizar el formulario con el contexto limpio
     ctx = InvoiceFormService.get_form_context()
-    # Generamos el número inicial reglamentario para que no aparezca vacío
     from utils.sequence_generators import generate_invoice_number
     numero_inicial = generate_invoice_number()
-    # CORRECCIÓN: Nombre de plantilla correcto
     return render_template('factura_form.html', **ctx, numero_factura=numero_inicial, edit_mode=False)
 
 
