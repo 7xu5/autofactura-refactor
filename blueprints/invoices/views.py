@@ -85,6 +85,13 @@ def factura_editar(id=None, factura_id=None):
         flash('Factura no encontrada.', 'danger')
         return redirect(url_for('invoices.facturas'))
 
+    # =========================================================================
+    # BARRERA DE SEGURIDAD: Si ya está aceptada por la AEAT, no se edita
+    # =========================================================================
+    if getattr(factura, 'verifactu_estado', None) == 'Aceptado':
+        flash('Esta factura ya ha sido enviada y aceptada por la AEAT. No se puede modificar.', 'warning')
+        return redirect(url_for('invoices.facturas'))
+
     if request.method == 'POST':
         _, ctx_error, error = InvoiceFormService.procesar_guardado_factura(request.form, factura_existente=factura)
         if error and ctx_error:

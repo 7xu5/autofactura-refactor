@@ -37,6 +37,17 @@ class InvoiceFormService:
         Procesa y valida los datos de un formulario tanto para creación como para edición.
         Devuelve una tupla con (factura_instancia, contexto_error, mensaje_error).
         """
+        # DEFENSA CRÍTICA: Impedir procesamiento si ya está consolidada en la AEAT
+        if factura_existente and getattr(factura_existente, 'verifactu_estado', None) == 'Aceptado':
+            ctx = cls.get_form_context()
+            contexto_error = {
+                **ctx,
+                'edit_mode': True,
+                'factura': factura_existente,
+                'lineas': factura_existente.lineas
+            }
+            return None, contexto_error, 'Operación denegada: Los registros aceptados por la AEAT son inmutables.'
+        
         ctx = cls.get_form_context()
         
         cliente_id = form_data.get('contacto_id')
@@ -148,7 +159,14 @@ class InvoiceFormService:
         factura.estado_ui = pestana
         factura.estado_contable = 'Emitida' if pestana != 'Borrador' else 'Borrador'
         factura.contacto_id = cliente.id
-        factura.referencia = form_data.get('referencia', '').strip()
+        
+        # DEFENSA: Si la factura ya es una Rectificativa y ya tiene una referencia asignada, la mantenemos intacta
+        nueva_referencia = form_data.get('referencia', '').strip()
+        if edit_mode and factura_existente and factura_existente.tipo_factura == 'Rectificativa' and factura_existente.referencia:
+            pass
+        else:
+            factura.referencia = nueva_referencia
+
         factura.fecha_vencimiento = datetime.strptime(fecha_vencimiento, '%Y-%m-%d').date() if fecha_vencimiento else None
         
         factura.total_base_imponible = totales['base_imponible']
