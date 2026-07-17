@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
 
 
-
+# Para producción, se recomienda usar un servidor WSGI como Waitress o Gunicorn.
 #if __name__ == '__main__':
     # Inicializamos la base de datos física usando la configuración de la app
  #   init_db(app)
