@@ -13,7 +13,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from models import Factura, FacturaVerifactu, db
-from conftest import crear_factura_db
+from tests.conftest import crear_factura_db
 import qrcode
 # ---------------------------------------------------------------------------
 # factura_crear
