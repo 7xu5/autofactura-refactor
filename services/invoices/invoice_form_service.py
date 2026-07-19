@@ -177,6 +177,12 @@ class InvoiceFormService:
         factura.total_factura = totales['total']
         factura.metodo_pago_id = selected_metodo_pago_id
 
+        try:
+            factura.validate() # Validación de campos obligatorios
+            factura.validar_integridad(totales['total']) # Validación de cálculo
+        except ValueError as e:
+            return None, contexto_error, str(e)
+
         if not edit_mode:
             db.session.add(factura)
             

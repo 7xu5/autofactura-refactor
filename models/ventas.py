@@ -1,5 +1,6 @@
 from app.extensions import db
 from models.mixins import ModelInitMixin
+from decimal import Decimal
 
 class Factura(ModelInitMixin, db.Model):
     __tablename__ = 'factura'
@@ -53,6 +54,18 @@ class Factura(ModelInitMixin, db.Model):
                 'total': str(l.subtotal_linea)
             })
         return resultado
+    
+    def validate(self):
+        """Valida los datos de la factura."""
+        if not self.contacto_id:
+            raise ValueError("El cliente es obligatorio.")
+        if not self.lineas:
+            raise ValueError("La factura debe tener al menos una línea.")
+        
+    def validar_integridad(self, total_esperado):
+        # El modelo no calcula, solo VERIFICA si lo que le dan es correcto
+        if abs(self.total_factura - total_esperado) > Decimal('0.01'):
+            raise ValueError("El total no coincide.")
 
 class FacturaLinea(ModelInitMixin, db.Model):
     __tablename__ = 'factura_linea'

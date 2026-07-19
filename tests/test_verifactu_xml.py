@@ -365,7 +365,7 @@ class TestVerifactuXmlBuilder(unittest.TestCase):
     def test_nombre_sistema(self) -> None:
         self.assertEqual(
             _get_text(self.root, "RegistroFactura/RegistroAlta/SistemaInformatico/NombreSistemaInformatico"),
-            "AutoFactura-V8",
+            "AutoFactura-V9",
         )
 
     def test_huella_actual(self) -> None:

@@ -64,6 +64,8 @@ def calculate_invoice_totals(lineas, recargo=False, porcentaje_retencion=Decimal
     desglose_iva = {} # Para guardar bases e IVAs agrupados por tipo
     
     for linea in lineas:
+
+        
         # Extraemos cantidad y precio unitario de la línea
         cantidad = Decimal(linea.get('cantidad') or 0)
         precio_unitario = Decimal(linea.get('precio_unitario') or 0)
@@ -71,6 +73,8 @@ def calculate_invoice_totals(lineas, recargo=False, porcentaje_retencion=Decimal
         
         # Subtotal de la línea antes de impuestos
         subtotal_linea = (cantidad * precio_unitario)
+
+
         if descuento > 0:
             subtotal_linea -= (subtotal_linea * descuento / Decimal('100'))
             
@@ -103,6 +107,7 @@ def calculate_invoice_totals(lineas, recargo=False, porcentaje_retencion=Decimal
     porcentaje_retencion = Decimal(porcentaje_retencion or 0)
     total_retencion = (total_base * porcentaje_retencion / Decimal('100')).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
     
+
     # Suma final absoluta
     total_factura = (total_base + total_iva + total_recargo - total_retencion).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
     

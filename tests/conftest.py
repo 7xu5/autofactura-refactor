@@ -37,8 +37,9 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app import app as flask_app  # noqa: E402
-from models import (  # noqa: E402
+from app.factory import create_app
+flask_app = create_app()
+from models import (  
     db,
     Contacto,
     Configuracion,

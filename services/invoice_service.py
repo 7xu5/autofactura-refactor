@@ -78,7 +78,7 @@ class InvoiceService:
 
             # Recargo de equivalencia dinámico según la tasa de IVA del cliente
             porcentaje_recargo = Decimal('0.00')
-            if cliente.recargo_equivalencia:
+            if cliente.recargo_equivalencia and pestana != "Borrador" and porcentaje_iva == Decimal('21'):
                 porcentaje_recargo = get_recargo_porcentaje(porcentaje_iva)
 
             instancias_lineas.append(FacturaLinea(
