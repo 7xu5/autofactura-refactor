@@ -19,8 +19,7 @@ Cómo correrlos:
     - Para lanzar todos incluidos los de las rustas xsd:
     pytest tests/ -x -v --xsd=tests/xsd/SuministroLR.xsd
 
-TODO
-    Crear pytest.ini para añadir las rutas y solo tener que ejcutar con pytest tests/ -x, se inyectará el XSD entre bastidores y verás el 100% de tus pruebas ejecutadas sin un solo skip.
+    pytest.ini para añadir las rutas y solo tener que ejcutar con pytest tests/ -x, se inyectará el XSD entre bastidores y verás el 100% de tus pruebas ejecutadas sin un solo skip.
     
     # pytest.ini
     [pytest]
@@ -67,7 +66,7 @@ def client(app):
 
 @pytest.fixture()
 def auth_client(client):
-    """Cliente con sesión ya autenticada (bypassa el login real de auth_bp)."""
+    """Cliente con sesión ya autenticada (bypass a el login real de auth_bp)."""
     with client.session_transaction() as sess:
         sess["user_id"] = 1
     return client
